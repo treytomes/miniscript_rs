@@ -60,7 +60,7 @@ impl Parser {
         false
     }
 
-    fn parse(&mut self) -> Option<Expr> {
+    pub fn parse(&mut self) -> Option<Expr> {
         match self.expression() {
             Ok(expr) => Some(expr),
             Err(_err) => {

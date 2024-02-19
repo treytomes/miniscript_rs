@@ -14,6 +14,8 @@ pub use expression::{Expr, format_ast};
 pub use token::Token;
 pub use token_type::TokenType;
 
+use crate::parser::Parser;
+
 pub struct Miniscript {}
 
 impl Miniscript {
@@ -28,11 +30,12 @@ impl Miniscript {
         let mut scanner = Scanner::new(code);
         scanner.scan_tokens();
 
-        // For now, just print the tokens.
-        for token in scanner.tokens {
-            println!("Token: {:?}", token);
-        }
-
+        let mut parser = Parser::new(scanner.tokens);
+        match parser.parse() {
+            Some(expr) => println!("AST: {}", expr),
+            None => println!("Syntax error."),
+        };
+        
         return if ErrorReporter::had_error() { 65 } else { 0 };
     }
 
