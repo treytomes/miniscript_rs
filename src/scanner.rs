@@ -27,7 +27,7 @@ impl Scanner {
             self.scan_token();
         }
 
-        self.tokens.push(Token::new(TokenType::EOF, "", None, self.line));
+        self.tokens.push(Token::new(TokenType::EOF, "", self.line));
     }
 
     fn is_at_end(&self) -> bool {
@@ -153,12 +153,8 @@ impl Scanner {
       
           // The closing ".
           self.advance();
-      
-          // Trim the surrounding quotes.
-          let value = &self.source[self.start as usize + 1..=self.current as usize - 1].to_string();
-          // TODO: I'm not sure this is trimming the quotes like it should.
 
-          self.add_token_with_literal(TokenType::String, Some(value));
+          self.add_token(TokenType::String);
     }
 
     fn number(&mut self) {
@@ -178,8 +174,7 @@ impl Scanner {
             }
         }
 
-        let value = &self.source[self.start as usize..self.current as usize].to_string();
-        self.add_token_with_literal(TokenType::Number, Some(value));
+        self.add_token(TokenType::Number);
     }
 
     fn peek(&self) -> char {
@@ -215,11 +210,7 @@ impl Scanner {
     }
 
     fn add_token(&mut self, token_type: TokenType) {
-        self.add_token_with_literal(token_type, None);
-    }
-
-    fn add_token_with_literal(&mut self, token_type: TokenType, literal: Option<&str>) {
         let text = &self.source[self.start as usize..self.current as usize];
-        self.tokens.push(Token::new(token_type, text, literal, self.line));
+        self.tokens.push(Token::new(token_type, text, self.line));
     }
 }

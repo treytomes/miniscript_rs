@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display};
 
-use crate::token::Token;
+use crate::{token::Token, EvalResult, TokenType};
 
 pub enum Expr {
     Binary(Box<Expr>, Token, Box<Expr>),
@@ -18,6 +18,44 @@ pub fn format_ast(expr: &Expr) -> String {
             Expr::Literal(value) => (*value).lexeme.clone(),
             Expr::Unary(operator, expr) =>
             format!("({:} {:})", operator.lexeme, format_ast(expr)),
+    }
+}
+
+pub fn eval_ast(expr: &Expr) -> EvalResult {
+    match expr {
+        Expr::Binary(left, operator, right) => {
+            let left = eval_ast(left);
+            let right = eval_ast(right);
+
+            match (left, right) {
+                (EvalResult::Number(left), EvalResult::Number(right)) => {
+                    match operator.token_type {
+                        TokenType::Plus => EvalResult::Number(left + right),
+                        TokenType::Minus => EvalResult::Number(left - right),
+                        TokenType::Star => EvalResult::Number(left * right),
+                        TokenType::Slash => EvalResult::Number(left / right),
+                        _ => unreachable!(),
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }
+        Expr::Grouping(expr) => eval_ast(expr),
+        Expr::Literal(value) => match value.token_type {
+            TokenType::Number => EvalResult::Number(value.lexeme.parse().unwrap()),
+            TokenType::String => EvalResult::String(value.lexeme.clone()),
+            _ => unreachable!(),
+        }
+        Expr::Unary(operator, expr) => {
+            let expr = eval_ast(expr);
+            match expr {
+                EvalResult::Number(value) => match operator.token_type {
+                    TokenType::Minus => EvalResult::Number(-value),
+                    _ => unreachable!(),
+                },
+                _ => unreachable!(),
+            }
+        }
     }
 }
 
@@ -41,12 +79,12 @@ mod tests {
     fn test_print_ast() {
         let expr = Expr::Binary(
             Box::new(Expr::Unary(
-                Token::new(TokenType::Minus, "-", None, 1),
-                Box::new(Expr::Literal(Token::new(TokenType::Number, "123", None, 1)))
+                Token::new(TokenType::Minus, "-", 1),
+                Box::new(Expr::Literal(Token::new(TokenType::Number, "123", 1)))
             )),
-            Token::new(TokenType::Star, "*", None, 1),
+            Token::new(TokenType::Star, "*", 1),
             Box::new(Expr::Grouping(
-                Box::new(Expr::Literal(Token::new(TokenType::Number, "45.67", None, 1)))
+                Box::new(Expr::Literal(Token::new(TokenType::Number, "45.67", 1)))
             ))
         );
 

@@ -1,6 +1,7 @@
 // src/lib.rs
 
 mod error_reporter;
+mod eval_result;
 mod expression;
 mod parser;
 mod scanner;
@@ -10,11 +11,12 @@ mod token_type;
 use scanner::Scanner;
 use error_reporter::ErrorReporter;
 
+pub use eval_result::EvalResult;
 pub use expression::{Expr, format_ast};
 pub use token::Token;
 pub use token_type::TokenType;
 
-use crate::parser::Parser;
+use crate::{expression::eval_ast, parser::Parser};
 
 pub struct Miniscript {}
 
@@ -32,7 +34,10 @@ impl Miniscript {
 
         let mut parser = Parser::new(scanner.tokens);
         match parser.parse() {
-            Some(expr) => println!("AST: {}", expr),
+            Some(expr) => {
+                println!("AST: {}", expr);
+                println!("Result: {}", eval_ast(&expr));
+            },
             None => println!("Syntax error."),
         };
         
