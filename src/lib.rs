@@ -32,6 +32,11 @@ impl Miniscript {
         let mut scanner = Scanner::new(code);
         scanner.scan_tokens();
 
+        // Write the tokens to stdout.
+        for token in &scanner.tokens {
+            println!("Token: {:?}", token);
+        }
+
         let mut parser = Parser::new(scanner.tokens);
         match parser.parse() {
             Some(expr) => {

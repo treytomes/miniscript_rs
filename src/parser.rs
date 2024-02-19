@@ -151,7 +151,7 @@ impl Parser {
             self.consume(TokenType::RightParen, "Expect ')' after expression.")?;
             Ok(Expr::Grouping(Box::new(expr)))
         } else {
-            Err(ParseError::UnexpectedToken(self.previous()))
+            Err(ParseError::UnexpectedToken(self.peek()))
         }
     }
 
