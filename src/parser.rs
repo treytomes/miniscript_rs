@@ -144,12 +144,12 @@ impl Parser {
     }
 
     fn primary(&mut self) -> Result<Expr, ParseError> {
-        // if self.match_token(&[TokenType::False]) {
-        //     return Ok(Expr::Literal(self.previous()));
-        // }
-        // if self.match_token(&[TokenType::True]) {
-        //     return Ok(Expr::Literal(self.previous()));
-        // }
+        if self.match_token(&[TokenType::False]) {
+            return Ok(Expr::Literal(self.previous()));
+        }
+        if self.match_token(&[TokenType::True]) {
+            return Ok(Expr::Literal(self.previous()));
+        }
         if self.match_token(&[TokenType::Null]) {
             return Ok(Expr::Literal(self.previous()));
         }
