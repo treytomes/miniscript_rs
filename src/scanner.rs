@@ -52,8 +52,6 @@ impl Scanner {
             // Match the multi-character operators.
             '!' => if self.match_char('=') {
                 self.add_token(TokenType::BangEqual)
-            } else {
-                self.add_token(TokenType::Bang)
             },
             '=' => if self.match_char('=') {
                 self.add_token(TokenType::EqualEqual)
@@ -123,7 +121,8 @@ impl Scanner {
             "for" => TokenType::For,
             "fun" => TokenType::Fun,
             "if" => TokenType::If,
-            "nil" => TokenType::Nil,
+            "null" => TokenType::Null,
+            "not" => TokenType::Not,
             "or" => TokenType::Or,
             "print" => TokenType::Print,
             "return" => TokenType::Return,
