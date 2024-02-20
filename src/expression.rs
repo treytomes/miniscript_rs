@@ -9,6 +9,18 @@ pub enum Expr {
     Unary(Token, Box<Expr>),
 }
 
+pub fn is_truthy(value: EvalResult) -> bool {
+    match value {
+        EvalResult::Number(value) => value != 0.0,
+        EvalResult::String(value) => value.len() > 0,
+        EvalResult::Null => false,
+    }
+}
+
+// pub fn is_falsy(value: EvalResult) -> bool {
+//     !is_truthy(value)
+// }
+
 pub fn format_ast(expr: &Expr) -> String {
     match expr {
         Expr::Binary(left, operator, right) => format!("({:} {:} {:})", operator.lexeme, format_ast(left), format_ast(right)),
@@ -24,23 +36,24 @@ pub fn eval_ast(expr: &Expr) -> EvalResult {
             let left = eval_ast(left);
             let right = eval_ast(right);
 
-            match (left, right) {
-                (EvalResult::Number(left), EvalResult::Number(right)) => {
+            match (&left, &right) {
+                (EvalResult::Number(l), EvalResult::Number(r)) => {
                     match operator.token_type {
-                        TokenType::And => EvalResult::Number(if left != 0.0 && right != 0.0 { 1.0 } else { 0.0 }),
-                        TokenType::Or => EvalResult::Number(if left != 0.0 || right != 0.0 { 1.0 } else { 0.0 }),
+                        // TODO: Think about shortcutting when it's time.
+                        TokenType::And => EvalResult::Number(if is_truthy(left) && is_truthy(right) { 1.0 } else { 0.0 }),
+                        TokenType::Or => EvalResult::Number(if is_truthy(left) || is_truthy(right) { 1.0 } else { 0.0 }),
                         
-                        TokenType::Plus => EvalResult::Number(left + right),
-                        TokenType::Minus => EvalResult::Number(left - right),
-                        TokenType::Star => EvalResult::Number(left * right),
-                        TokenType::Slash => EvalResult::Number(left / right),
+                        TokenType::Plus => EvalResult::Number(l + r),
+                        TokenType::Minus => EvalResult::Number(l - r),
+                        TokenType::Star => EvalResult::Number(l * r),
+                        TokenType::Slash => EvalResult::Number(l / r),
                         
-                        TokenType::Greater => EvalResult::Number(if left > right { 1.0 } else { 0.0 }),
-                        TokenType::GreaterEqual => EvalResult::Number(if left >= right { 1.0 } else { 0.0 }),
-                        TokenType::Less => EvalResult::Number(if left < right { 1.0 } else { 0.0 }),
-                        TokenType::LessEqual => EvalResult::Number(if left <= right { 1.0 } else { 0.0 }),
-                        TokenType::BangEqual => EvalResult::Number(if left != right { 1.0 } else { 0.0 }),
-                        TokenType::EqualEqual => EvalResult::Number(if left == right { 1.0 } else { 0.0 }),
+                        TokenType::Greater => EvalResult::Number(if l > r { 1.0 } else { 0.0 }),
+                        TokenType::GreaterEqual => EvalResult::Number(if l >= r { 1.0 } else { 0.0 }),
+                        TokenType::Less => EvalResult::Number(if l < r { 1.0 } else { 0.0 }),
+                        TokenType::LessEqual => EvalResult::Number(if l <= r { 1.0 } else { 0.0 }),
+                        TokenType::BangEqual => EvalResult::Number(if l != r { 1.0 } else { 0.0 }),
+                        TokenType::EqualEqual => EvalResult::Number(if l == r { 1.0 } else { 0.0 }),
                         _ => unreachable!(),
                     }
                 }
@@ -61,7 +74,7 @@ pub fn eval_ast(expr: &Expr) -> EvalResult {
             match expr {
                 EvalResult::Number(value) => match operator.token_type {
                     TokenType::Minus => EvalResult::Number(-value),
-                    TokenType::Not => EvalResult::Number(if value == 0.0 { 1.0 } else { 0.0 }),
+                    TokenType::Not => EvalResult::Number(if is_truthy(expr) { 0.0 } else { 1.0 }),
                     _ => unreachable!(),
                 },
                 _ => unreachable!(),
@@ -123,8 +136,8 @@ mod tests {
         test_eval("1 or 0", EvalResult::Number(1.0));
         test_eval("-1", EvalResult::Number(-1.0));
         test_eval("not 1", EvalResult::Number(0.0));
-        // test_eval("true", EvalResult::Number(1.0));
-        // test_eval("false", EvalResult::Number(0.0));
+        test_eval("true", EvalResult::Number(1.0));
+        test_eval("false", EvalResult::Number(0.0));
         test_eval("1+2*3", EvalResult::Number(7.0));
         test_eval("(1+2)*3", EvalResult::Number(9.0));
         test_eval("1+2*3+4/5", EvalResult::Number(7.8));
@@ -135,11 +148,19 @@ mod tests {
         let mut scanner = Scanner::new(input);
         scanner.scan_tokens();
 
+
+        // // Print the tokens.
+        // for token in &scanner.tokens {
+        //     println!("{:?}", token);
+        // }
+
         let mut parser = Parser::new(scanner.tokens);
         let expr = match parser.parse() {
             Some(expr) => expr,
             None => { panic!("Syntax error.") },
         };
+
+        println!("{:}", expr);
         
         let result = eval_ast(&expr);
         assert_eq!(result, expected);

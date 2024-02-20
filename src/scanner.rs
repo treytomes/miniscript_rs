@@ -88,6 +88,13 @@ impl Scanner {
                 self.add_token(TokenType::Dot)
             },
 
+            '!' => if self.peek() == '=' {
+                self.advance();
+                self.add_token(TokenType::BangEqual);
+            } else {
+                ErrorReporter::error_line(self.line, format!("Unexpected character: {}", c).as_str());
+            }
+
             // Match identifiers and keywords.
             'a'..='z' | 'A'..='Z' | '_' => self.identifier(),
 
@@ -111,7 +118,6 @@ impl Scanner {
 
         let text = &self.source[self.start as usize..self.current as usize];
         let token_type = match text {
-            "!=" => TokenType::BangEqual,
             "and" => TokenType::And,
             "class" => TokenType::Class,
             "else" => TokenType::Else,
