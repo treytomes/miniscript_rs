@@ -49,10 +49,7 @@ impl Scanner {
             ';' => self.add_token(TokenType::SemiColon),
             '*' => self.add_token(TokenType::Star),
             
-            // Match the multi-character operators.
-            '!' => if self.match_char('=') {
-                self.add_token(TokenType::BangEqual)
-            },
+            // Match the potential multi-character operators.
             '=' => if self.match_char('=') {
                 self.add_token(TokenType::EqualEqual)
             } else {
@@ -114,6 +111,7 @@ impl Scanner {
 
         let text = &self.source[self.start as usize..self.current as usize];
         let token_type = match text {
+            "!=" => TokenType::BangEqual,
             "and" => TokenType::And,
             "class" => TokenType::Class,
             "else" => TokenType::Else,

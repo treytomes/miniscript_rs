@@ -29,10 +29,12 @@ pub fn eval_ast(expr: &Expr) -> EvalResult {
                     match operator.token_type {
                         TokenType::And => EvalResult::Number(if left != 0.0 && right != 0.0 { 1.0 } else { 0.0 }),
                         TokenType::Or => EvalResult::Number(if left != 0.0 || right != 0.0 { 1.0 } else { 0.0 }),
+                        
                         TokenType::Plus => EvalResult::Number(left + right),
                         TokenType::Minus => EvalResult::Number(left - right),
                         TokenType::Star => EvalResult::Number(left * right),
                         TokenType::Slash => EvalResult::Number(left / right),
+                        
                         TokenType::Greater => EvalResult::Number(if left > right { 1.0 } else { 0.0 }),
                         TokenType::GreaterEqual => EvalResult::Number(if left >= right { 1.0 } else { 0.0 }),
                         TokenType::Less => EvalResult::Number(if left < right { 1.0 } else { 0.0 }),
@@ -49,6 +51,9 @@ pub fn eval_ast(expr: &Expr) -> EvalResult {
         Expr::Literal(value) => match value.token_type {
             TokenType::Number => EvalResult::Number(value.lexeme.parse().unwrap()),
             TokenType::String => EvalResult::String(value.lexeme.clone()),
+            TokenType::Null => EvalResult::Null,
+            TokenType::True => EvalResult::Number(1.0),
+            TokenType::False => EvalResult::Number(0.0),
             _ => unreachable!(),
         }
         Expr::Unary(operator, expr) => {
