@@ -70,7 +70,19 @@ impl Parser {
     }
 
     fn expression(&mut self) -> Result<Expr, ParseError> {
-        self.equality()
+        self.logical()
+    }
+
+    fn logical(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.equality()?;
+
+        while self.match_token(&[TokenType::And, TokenType::Or]) {
+          let operator = self.previous();
+          let right = self.equality()?;
+          expr = Expr::Binary(Box::new(expr), operator, Box::new(right));
+        }
+    
+        Ok(expr)
     }
 
     fn equality(&mut self) -> Result<Expr, ParseError> {
@@ -122,7 +134,7 @@ impl Parser {
     }
 
     fn unary(&mut self) -> Result<Expr, ParseError> {
-        if self.match_token(&[TokenType::Bang, TokenType::Minus]) {
+        if self.match_token(&[TokenType::Not, TokenType::Minus]) {
             let operator = self.previous();
             let right = self.unary()?;
             return Ok(Expr::Unary(operator, Box::new(right)));
@@ -132,13 +144,13 @@ impl Parser {
     }
 
     fn primary(&mut self) -> Result<Expr, ParseError> {
-        if self.match_token(&[TokenType::False]) {
-            return Ok(Expr::Literal(self.previous()));
-        }
-        if self.match_token(&[TokenType::True]) {
-            return Ok(Expr::Literal(self.previous()));
-        }
-        if self.match_token(&[TokenType::Nil]) {
+        // if self.match_token(&[TokenType::False]) {
+        //     return Ok(Expr::Literal(self.previous()));
+        // }
+        // if self.match_token(&[TokenType::True]) {
+        //     return Ok(Expr::Literal(self.previous()));
+        // }
+        if self.match_token(&[TokenType::Null]) {
             return Ok(Expr::Literal(self.previous()));
         }
     
@@ -155,8 +167,9 @@ impl Parser {
         }
     }
 
-    fn consume(&self, token_type: TokenType, message: &str) -> Result<(), ParseError> {
+    fn consume(&mut self, token_type: TokenType, message: &str) -> Result<(), ParseError> {
         if self.check(token_type) {
+            self.advance();
             return Ok(());
         }
 
