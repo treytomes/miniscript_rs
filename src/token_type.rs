@@ -5,7 +5,6 @@ pub enum TokenType {
     Comma, Dot, Minus, Plus, SemiColon, Slash, Star,
 
     // One or two character tokens.
-    Bang, // TODO: This one is actually the `not` keyword.
     BangEqual,
     Equal, EqualEqual,
     Greater, GreaterEqual,
@@ -18,11 +17,10 @@ pub enum TokenType {
     Class, // TODO: Remove this once you understand how the class infrastructure works.
     Fun, // TODO: Rename to Fn after implementing.
     True, False, // TODO: Replace this with intrinsic constants.
-    Nil, // TODO: Rename to Null after implementing.
     This, // TODO: Rename to Self after implementing.
     Var, // TODO: Remove the necessity of this one after implementing variable declarations.
     Print, // TODO: Replace this with some type of intrinsic function.
-    And, Else, For, If, Or, Return, Super, While,
+    And, Else, For, If, Not, Null, Or, Return, Super, While,
 
     EOF,
 }
