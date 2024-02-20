@@ -25,17 +25,17 @@ impl Miniscript {
         Self {}
     }
 
-    pub fn run(&self, code: &str) -> i32 {
+    pub fn run(&self, code: &str) -> bool {
         // Placeholder for your language execution logic
         println!("Executing code: {}", code);
 
         let mut scanner = Scanner::new(code);
         scanner.scan_tokens();
 
-        // Write the tokens to stdout.
-        for token in &scanner.tokens {
-            println!("Token: {:?}", token);
-        }
+        // // Write the tokens to stdout.
+        // for token in &scanner.tokens {
+        //     println!("Token: {:?}", token);
+        // }
 
         let mut parser = Parser::new(scanner.tokens);
         match parser.parse() {
@@ -46,10 +46,10 @@ impl Miniscript {
             None => println!("Syntax error."),
         };
         
-        return if ErrorReporter::had_error() { 65 } else { 0 };
+        ErrorReporter::had_error()
     }
 
-    pub fn run_file(&self, path: &str) -> i32 {
+    pub fn run_file(&self, path: &str) -> bool {
         // Placeholder for your language execution logic
         println!("Loading: {}", path);
 

@@ -8,7 +8,11 @@ fn print_usage() {
 }
 
 fn run_file() -> i32 {
-    return Miniscript::new().run_file(&std::env::args().nth(1).unwrap());
+    if Miniscript::new().run_file(&std::env::args().nth(1).unwrap()) {
+        0
+    } else {
+        65
+    }
 }
 
 fn run_prompt() {
@@ -28,7 +32,7 @@ fn run_prompt() {
         }
 
         let output = Miniscript::new().run(&input);
-        println!("{}", output);
+        // println!("{}", output);
     }
 }
 
