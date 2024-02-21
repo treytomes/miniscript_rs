@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display};
 
-use crate::{token::Token, EvalResult, TokenType};
+use crate::{error_reporter::ErrorReporter, token::Token, Error, EvalResult, TokenType};
 
 pub enum Expr {
     Binary(Box<Expr>, Token, Box<Expr>),
@@ -14,6 +14,7 @@ pub fn is_truthy(value: EvalResult) -> bool {
         EvalResult::Number(value) => value != 0.0,
         EvalResult::String(value) => value.len() > 0,
         EvalResult::Null => false,
+        _ => unreachable!("This shouldn't have happened."),
     }
 }
 
@@ -30,70 +31,70 @@ pub fn format_ast(expr: &Expr) -> String {
     }
 }
 
-pub fn eval_ast(expr: &Expr) -> EvalResult {
+pub fn eval_ast(expr: &Expr, reporter: &mut ErrorReporter) -> Result<EvalResult, Error> {
     match expr {
         Expr::Binary(left, operator, right) => {
-            let left = eval_ast(left);
+            let left = eval_ast(left, reporter)?;
             if operator.token_type == TokenType::And {
                 if is_falsy(left) {
-                    return EvalResult::Number(0.0);
+                    return Ok(EvalResult::Number(0.0));
                 } else {
-                    let right = eval_ast(right);
-                    return EvalResult::Number(if is_truthy(right) { 1.0 } else { 0.0 });
+                    let right = eval_ast(right, reporter)?;
+                    return Ok(EvalResult::Number(if is_truthy(right) { 1.0 } else { 0.0 }));
                 }
 
             } else if operator.token_type == TokenType::Or {
                 if is_truthy(left) {
-                    return EvalResult::Number(1.0);
+                    return Ok(EvalResult::Number(1.0));
                 } else {
-                    let right = eval_ast(right);
-                    return EvalResult::Number(if is_truthy(right) { 1.0 } else { 0.0 });
+                    let right = eval_ast(right, reporter)?;
+                    return Ok(EvalResult::Number(if is_truthy(right) { 1.0 } else { 0.0 }));
                 }
             }
 
-            let right = eval_ast(right);
+            let right = eval_ast(right, reporter)?;
 
             match (&left, &right) {
                 (EvalResult::Number(l), EvalResult::Number(r)) => match operator.token_type {
-                    TokenType::Plus => EvalResult::Number(l + r),
-                    TokenType::Minus => EvalResult::Number(l - r),
-                    TokenType::Star => EvalResult::Number(l * r),
-                    TokenType::Slash => EvalResult::Number(l / r),
+                    TokenType::Plus => Ok(EvalResult::Number(l + r)),
+                    TokenType::Minus => Ok(EvalResult::Number(l - r)),
+                    TokenType::Star => Ok(EvalResult::Number(l * r)),
+                    TokenType::Slash => Ok(EvalResult::Number(l / r)),
                     
-                    TokenType::Greater => EvalResult::Number(if l > r { 1.0 } else { 0.0 }),
-                    TokenType::GreaterEqual => EvalResult::Number(if l >= r { 1.0 } else { 0.0 }),
-                    TokenType::Less => EvalResult::Number(if l < r { 1.0 } else { 0.0 }),
-                    TokenType::LessEqual => EvalResult::Number(if l <= r { 1.0 } else { 0.0 }),
-                    TokenType::BangEqual => EvalResult::Number(if l != r { 1.0 } else { 0.0 }),
-                    TokenType::EqualEqual => EvalResult::Number(if l == r { 1.0 } else { 0.0 }),
+                    TokenType::Greater => Ok(EvalResult::Number(if l > r { 1.0 } else { 0.0 })),
+                    TokenType::GreaterEqual => Ok(EvalResult::Number(if l >= r { 1.0 } else { 0.0 })),
+                    TokenType::Less => Ok(EvalResult::Number(if l < r { 1.0 } else { 0.0 })),
+                    TokenType::LessEqual => Ok(EvalResult::Number(if l <= r { 1.0 } else { 0.0 })),
+                    TokenType::BangEqual => Ok(EvalResult::Number(if l != r { 1.0 } else { 0.0 })),
+                    TokenType::EqualEqual => Ok(EvalResult::Number(if l == r { 1.0 } else { 0.0 })),
                     
-                    _ => unreachable!(),
+                    _ => Err(reporter.error_line(operator.line, "Syntax error.")),
                 },
 
                 (EvalResult::String(l), EvalResult::String(r)) => match operator.token_type {
-                    TokenType::Plus => EvalResult::String(format!("{}{}", l, r)),
+                    TokenType::Plus => Ok(EvalResult::String(format!("{}{}", l, r))),
                     TokenType::Minus => if l.ends_with(r) {  // If `l` ends with `r`, remove `r` from `l`.
-                        EvalResult::String(l[..l.len() - r.len()].to_string())
+                        Ok(EvalResult::String(l[..l.len() - r.len()].to_string()))
                     } else {
-                        left
+                        Ok(left)
                     }
                     
-                    TokenType::Greater => EvalResult::Number(if l > r { 1.0 } else { 0.0 }),
-                    TokenType::GreaterEqual => EvalResult::Number(if l >= r { 1.0 } else { 0.0 }),
-                    TokenType::Less => EvalResult::Number(if l < r { 1.0 } else { 0.0 }),
-                    TokenType::LessEqual => EvalResult::Number(if l <= r { 1.0 } else { 0.0 }),
-                    TokenType::BangEqual => EvalResult::Number(if l != r { 1.0 } else { 0.0 }),
-                    TokenType::EqualEqual => EvalResult::Number(if l == r { 1.0 } else { 0.0 }),
+                    TokenType::Greater => Ok(EvalResult::Number(if l > r { 1.0 } else { 0.0 })),
+                    TokenType::GreaterEqual => Ok(EvalResult::Number(if l >= r { 1.0 } else { 0.0 })),
+                    TokenType::Less => Ok(EvalResult::Number(if l < r { 1.0 } else { 0.0 })),
+                    TokenType::LessEqual => Ok(EvalResult::Number(if l <= r { 1.0 } else { 0.0 })),
+                    TokenType::BangEqual => Ok(EvalResult::Number(if l != r { 1.0 } else { 0.0 })),
+                    TokenType::EqualEqual => Ok(EvalResult::Number(if l == r { 1.0 } else { 0.0 })),
 
-                    _ => unreachable!(),
+                    _ => Err(reporter.error_line(operator.line, "Syntax error.")),
                 },
 
                 (EvalResult::String(l), EvalResult::Number(r)) => match operator.token_type {
-                    TokenType::Plus => EvalResult::String(format!("{}{}", l, r)),
+                    TokenType::Plus => Ok(EvalResult::String(format!("{}{}", l, r))),
                     TokenType::Minus => if l.ends_with(&r.to_string()) {  // If `l` ends with `r`, remove `r` from `l`.
-                        EvalResult::String(l[..l.len() - r.to_string().len()].to_string())
+                        Ok(EvalResult::String(l[..l.len() - r.to_string().len()].to_string()))
                     } else {
-                        left
+                        Ok(left)
                     },
                     TokenType::Star => {
                         // Repeat 'l' 'r' number of times.
@@ -101,44 +102,44 @@ pub fn eval_ast(expr: &Expr) -> EvalResult {
                         for _ in 0..r.floor() as usize {
                             result.push_str(l);
                         }
-                        EvalResult::String(result)
+                        Ok(EvalResult::String(result))
                     },
                     TokenType::Slash => {
                         // Calculate the length of `l`.  Divide that length by the ceiling value of `r`.  That number is the length of the substring of `l` to return.
                         let substring_length = ((l.len() as f64) / r.ceil()) as usize;
-                        EvalResult::String(l[..substring_length].to_string())
+                        Ok(EvalResult::String(l[..substring_length].to_string()))
                     },
-                    _ => unreachable!(),
+                    _ => Err(reporter.error_line(operator.line, "Syntax error.")),
                 },
 
                 (EvalResult::Number(l), EvalResult::String(r)) => match operator.token_type {
-                    TokenType::Plus => EvalResult::String(format!("{}{}", l, r)),
-                    _ => unreachable!(),
+                    TokenType::Plus => Ok(EvalResult::String(format!("{}{}", l, r))),
+                    _ => Err(reporter.error_line(operator.line, "Syntax error.")),
                 },
 
-                _ => unreachable!(),
+                _ => Err(reporter.error_line(operator.line, "Syntax error.")),
             }
-        }
-        Expr::Grouping(expr) => eval_ast(expr),
+        },
+        Expr::Grouping(expr) => eval_ast(expr, reporter),
         Expr::Literal(value) => match value.token_type {
-            TokenType::Number => EvalResult::Number(value.lexeme.parse().unwrap()),
-            TokenType::String => EvalResult::String(value.lexeme[1..value.lexeme.len() - 1].replace("\"\"", "\"").to_string()),
-            TokenType::Null => EvalResult::Null,
-            TokenType::True => EvalResult::Number(1.0),
-            TokenType::False => EvalResult::Number(0.0),
-            _ => unreachable!(),
-        }
+            TokenType::Number => Ok(EvalResult::Number(value.lexeme.parse().unwrap())),
+            TokenType::String => Ok(EvalResult::String(value.lexeme[1..value.lexeme.len() - 1].replace("\"\"", "\"").to_string())),
+            TokenType::Null => Ok(EvalResult::Null),
+            TokenType::True => Ok(EvalResult::Number(1.0)),
+            TokenType::False => Ok(EvalResult::Number(0.0)),
+            _ => Err(reporter.error_line(value.line, "Syntax error.")),
+        },
         Expr::Unary(operator, expr) => {
-            let expr = eval_ast(expr);
+            let expr = eval_ast(expr, reporter)?;
             match expr {
                 EvalResult::Number(value) => match operator.token_type {
-                    TokenType::Minus => EvalResult::Number(-value),
-                    TokenType::Not => EvalResult::Number(if is_truthy(expr) { 0.0 } else { 1.0 }),
-                    _ => unreachable!(),
+                    TokenType::Minus => Ok(EvalResult::Number(-value)),
+                    TokenType::Not => Ok(EvalResult::Number(if is_truthy(expr) { 0.0 } else { 1.0 })),
+                    _ => Err(reporter.error_line(operator.line, "Syntax error.")),
                 },
-                _ => unreachable!(),
+                _ => Err(reporter.error_line(operator.line, "Syntax error.")),
             }
-        }
+        },
     }
 }
 
@@ -156,7 +157,7 @@ impl Debug for Expr {
 
 #[cfg(test)]
 mod tests {
-    use crate::{expression::eval_ast, parser::Parser, scanner::Scanner, EvalResult, Expr, Token, TokenType};
+    use crate::{error_reporter::ErrorReporter, expression::eval_ast, parser::Parser, scanner::Scanner, EvalResult, Expr, Token, TokenType};
 
     #[test]
     fn test_print_ast() {
@@ -223,8 +224,10 @@ mod tests {
     }
 
     fn test_eval(input: &str, expected: EvalResult) {
+        let mut reporter = ErrorReporter::new();
+
         let mut scanner = Scanner::new(input);
-        scanner.scan_tokens();
+        scanner.scan_tokens(&mut reporter);
 
 
         // // Print the tokens.
@@ -233,14 +236,16 @@ mod tests {
         // }
 
         let mut parser = Parser::new(scanner.tokens);
-        let expr = match parser.parse() {
+        let expr = match parser.parse(&mut reporter) {
             Some(expr) => expr,
             None => { panic!("Syntax error.") },
         };
 
         // println!("{:}", expr);
         
-        let result = eval_ast(&expr);
-        assert_eq!(result, expected);
+        match eval_ast(&expr, &mut reporter) {
+            Ok(result) => assert_eq!(result, expected),
+            Err(err) => panic!("{}", err),
+        }
     }
 }

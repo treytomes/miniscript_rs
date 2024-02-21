@@ -20,11 +20,11 @@ impl Scanner {
         }
     }
 
-    pub fn scan_tokens(&mut self) {
+    pub fn scan_tokens(&mut self, reporter: &mut ErrorReporter) {
         while !self.is_at_end() {
             // We are at the beginning of the next lexeme.
             self.start = self.current;
-            self.scan_token();
+            self.scan_token(reporter);
         }
 
         self.tokens.push(Token::new(TokenType::EOF, "", self.line));
@@ -34,7 +34,7 @@ impl Scanner {
         self.current >= self.source.len() as i64
     }
 
-    fn scan_token(&mut self) {
+    fn scan_token(&mut self, reporter: &mut ErrorReporter) {
         let c = self.advance();
         match c {
             // Match the single-character operators.
@@ -77,7 +77,7 @@ impl Scanner {
             },
 
             // Match strings.
-            '"' => self.string(),
+            '"' => self.string(reporter),
 
             // Match numbers.
             '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' => self.number(),
@@ -92,7 +92,7 @@ impl Scanner {
                 self.advance();
                 self.add_token(TokenType::BangEqual);
             } else {
-                ErrorReporter::error_line(self.line, format!("Unexpected character: {}", c).as_str());
+                reporter.error_line(self.line, format!("Unexpected character: {}", c).as_str());
             }
 
             // Match identifiers and keywords.
@@ -106,7 +106,7 @@ impl Scanner {
 
             // Report an error on any other character.
             _ => {
-                ErrorReporter::error_line(self.line, format!("Unexpected character: {}", c).as_str());
+                reporter.error_line(self.line, format!("Unexpected character: {}", c).as_str());
             }
         }
     }
@@ -141,7 +141,7 @@ impl Scanner {
         self.add_token(token_type);
     }
 
-    fn string(&mut self) {
+    fn string(&mut self, reporter: &mut ErrorReporter) {
         while !self.is_at_end() {
             match self.peek() {
                 '\n' => self.line += 1,
@@ -157,7 +157,7 @@ impl Scanner {
           }
       
           if self.is_at_end() {
-            ErrorReporter::error_line(self.line, "Unterminated string.");
+            reporter.error_line(self.line, "Unterminated string.");
             return;
           }
       

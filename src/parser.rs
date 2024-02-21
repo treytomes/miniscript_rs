@@ -60,8 +60,8 @@ impl Parser {
         false
     }
 
-    pub fn parse(&mut self) -> Option<Expr> {
-        match self.expression() {
+    pub fn parse(&mut self, reporter: &mut ErrorReporter) -> Option<Expr> {
+        match self.expression(reporter) {
             Ok(expr) => Some(expr),
             Err(_err) => {
                 None
@@ -69,81 +69,81 @@ impl Parser {
         }
     }
 
-    fn expression(&mut self) -> Result<Expr, ParseError> {
-        self.logical()
+    fn expression(&mut self, reporter: &mut ErrorReporter) -> Result<Expr, ParseError> {
+        self.logical(reporter)
     }
 
-    fn logical(&mut self) -> Result<Expr, ParseError> {
-        let mut expr = self.equality()?;
+    fn logical(&mut self, reporter: &mut ErrorReporter) -> Result<Expr, ParseError> {
+        let mut expr = self.equality(reporter)?;
 
         while self.match_token(&[TokenType::And, TokenType::Or]) {
           let operator = self.previous();
-          let right = self.equality()?;
+          let right = self.equality(reporter)?;
           expr = Expr::Binary(Box::new(expr), operator, Box::new(right));
         }
     
         Ok(expr)
     }
 
-    fn equality(&mut self) -> Result<Expr, ParseError> {
-        let mut expr = self.comparison()?;
+    fn equality(&mut self, reporter: &mut ErrorReporter) -> Result<Expr, ParseError> {
+        let mut expr = self.comparison(reporter)?;
 
         while self.match_token(&[TokenType::BangEqual, TokenType::EqualEqual]) {
           let operator = self.previous();
-          let right = self.comparison()?;
+          let right = self.comparison(reporter)?;
           expr = Expr::Binary(Box::new(expr), operator, Box::new(right));
         }
     
         Ok(expr)
     }
 
-    fn comparison(&mut self) -> Result<Expr, ParseError> {
-        let mut expr = self.term()?;
+    fn comparison(&mut self, reporter: &mut ErrorReporter) -> Result<Expr, ParseError> {
+        let mut expr = self.term(reporter)?;
 
         while self.match_token(&[TokenType::Greater, TokenType::GreaterEqual, TokenType::Less, TokenType::LessEqual]) {
           let operator = self.previous();
-          let right = self.term()?;
+          let right = self.term(reporter)?;
           expr = Expr::Binary(Box::new(expr), operator, Box::new(right));
         }
     
         Ok(expr)
     }
 
-    fn term(&mut self) -> Result<Expr, ParseError> {
-        let mut expr = self.factor()?;
+    fn term(&mut self, reporter: &mut ErrorReporter) -> Result<Expr, ParseError> {
+        let mut expr = self.factor(reporter)?;
 
         while self.match_token(&[TokenType::Minus, TokenType::Plus]) {
           let operator = self.previous();
-          let right = self.factor()?;
+          let right = self.factor(reporter)?;
           expr = Expr::Binary(Box::new(expr), operator, Box::new(right));
         }
     
         Ok(expr)
     }
 
-    fn factor(&mut self) -> Result<Expr, ParseError> {
-        let mut expr = self.unary()?;
+    fn factor(&mut self, reporter: &mut ErrorReporter) -> Result<Expr, ParseError> {
+        let mut expr = self.unary(reporter)?;
 
         while self.match_token(&[TokenType::Slash, TokenType::Star]) {
           let operator = self.previous();
-          let right = self.unary()?;
+          let right = self.unary(reporter)?;
           expr = Expr::Binary(Box::new(expr), operator, Box::new(right));
         }
 
         Ok(expr)
     }
 
-    fn unary(&mut self) -> Result<Expr, ParseError> {
+    fn unary(&mut self, reporter: &mut ErrorReporter) -> Result<Expr, ParseError> {
         if self.match_token(&[TokenType::Not, TokenType::Minus]) {
             let operator = self.previous();
-            let right = self.unary()?;
+            let right = self.unary(reporter)?;
             return Ok(Expr::Unary(operator, Box::new(right)));
         }
       
-        self.primary()
+        self.primary(reporter)
     }
 
-    fn primary(&mut self) -> Result<Expr, ParseError> {
+    fn primary(&mut self, reporter: &mut ErrorReporter) -> Result<Expr, ParseError> {
         if self.match_token(&[TokenType::False]) {
             return Ok(Expr::Literal(self.previous()));
         }
@@ -159,25 +159,25 @@ impl Parser {
         }
     
         if self.match_token(&[TokenType::LeftParen]) {
-            let expr = self.expression()?;
-            self.consume(TokenType::RightParen, "Expect ')' after expression.")?;
+            let expr = self.expression(reporter)?;
+            self.consume(TokenType::RightParen, "Expect ')' after expression.", reporter)?;
             Ok(Expr::Grouping(Box::new(expr)))
         } else {
             Err(ParseError::UnexpectedToken(self.peek()))
         }
     }
 
-    fn consume(&mut self, token_type: TokenType, message: &str) -> Result<(), ParseError> {
+    fn consume(&mut self, token_type: TokenType, message: &str, reporter: &mut ErrorReporter) -> Result<(), ParseError> {
         if self.check(token_type) {
             self.advance();
             return Ok(());
         }
 
-        self.error(self.peek(), message)
+        self.error(self.peek(), message, reporter)
     }
 
-    fn error(&self, token: Token, message: &str) -> Result<(), ParseError> {
-        ErrorReporter::error_token(token.clone(), message);
+    fn error(&self, token: Token, message: &str, reporter: &mut ErrorReporter) -> Result<(), ParseError> {
+        reporter.error_token(token.clone(), message);
         Err(ParseError::UnexpectedToken(token.clone()))?
     }
 
@@ -202,7 +202,7 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-    use crate::{parser::Parser, scanner::Scanner};
+    use crate::{error_reporter::ErrorReporter, parser::Parser, scanner::Scanner};
 
     #[test]
     fn test_parse_expressions() {
@@ -210,11 +210,13 @@ mod tests {
     }
 
     fn test_parse_expression(input: &str, expected_output: &str) {
+        let mut reporter = ErrorReporter::new();
+
         let mut scanner = Scanner::new(input);
-        scanner.scan_tokens();
+        scanner.scan_tokens(&mut reporter);
 
         let mut parser = Parser::new(scanner.tokens);
-        let expr = match parser.parse() {
+        let expr = match parser.parse(&mut reporter) {
             Some(expr) => expr,
             None => { panic!("Syntax error.") },
         };
