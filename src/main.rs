@@ -31,7 +31,7 @@ fn run_prompt() {
             break;
         }
 
-        let output = Miniscript::new().run(&input);
+        let _output = Miniscript::new().run(&input);
         // println!("{}", output);
     }
 }

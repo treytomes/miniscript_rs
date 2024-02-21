@@ -37,33 +37,79 @@ pub fn eval_ast(expr: &Expr) -> EvalResult {
             let right = eval_ast(right);
 
             match (&left, &right) {
-                (EvalResult::Number(l), EvalResult::Number(r)) => {
-                    match operator.token_type {
-                        // TODO: Think about shortcutting when it's time.
-                        TokenType::And => EvalResult::Number(if is_truthy(left) && is_truthy(right) { 1.0 } else { 0.0 }),
-                        TokenType::Or => EvalResult::Number(if is_truthy(left) || is_truthy(right) { 1.0 } else { 0.0 }),
-                        
-                        TokenType::Plus => EvalResult::Number(l + r),
-                        TokenType::Minus => EvalResult::Number(l - r),
-                        TokenType::Star => EvalResult::Number(l * r),
-                        TokenType::Slash => EvalResult::Number(l / r),
-                        
-                        TokenType::Greater => EvalResult::Number(if l > r { 1.0 } else { 0.0 }),
-                        TokenType::GreaterEqual => EvalResult::Number(if l >= r { 1.0 } else { 0.0 }),
-                        TokenType::Less => EvalResult::Number(if l < r { 1.0 } else { 0.0 }),
-                        TokenType::LessEqual => EvalResult::Number(if l <= r { 1.0 } else { 0.0 }),
-                        TokenType::BangEqual => EvalResult::Number(if l != r { 1.0 } else { 0.0 }),
-                        TokenType::EqualEqual => EvalResult::Number(if l == r { 1.0 } else { 0.0 }),
-                        _ => unreachable!(),
+                (EvalResult::Number(l), EvalResult::Number(r)) => match operator.token_type {
+                    // TODO: Think about shortcutting when it's time.
+                    TokenType::And => EvalResult::Number(if is_truthy(left) && is_truthy(right) { 1.0 } else { 0.0 }),
+                    TokenType::Or => EvalResult::Number(if is_truthy(left) || is_truthy(right) { 1.0 } else { 0.0 }),
+                    
+                    TokenType::Plus => EvalResult::Number(l + r),
+                    TokenType::Minus => EvalResult::Number(l - r),
+                    TokenType::Star => EvalResult::Number(l * r),
+                    TokenType::Slash => EvalResult::Number(l / r),
+                    
+                    TokenType::Greater => EvalResult::Number(if l > r { 1.0 } else { 0.0 }),
+                    TokenType::GreaterEqual => EvalResult::Number(if l >= r { 1.0 } else { 0.0 }),
+                    TokenType::Less => EvalResult::Number(if l < r { 1.0 } else { 0.0 }),
+                    TokenType::LessEqual => EvalResult::Number(if l <= r { 1.0 } else { 0.0 }),
+                    TokenType::BangEqual => EvalResult::Number(if l != r { 1.0 } else { 0.0 }),
+                    TokenType::EqualEqual => EvalResult::Number(if l == r { 1.0 } else { 0.0 }),
+                    
+                    _ => unreachable!(),
+                },
+
+                (EvalResult::String(l), EvalResult::String(r)) => match operator.token_type {
+                    TokenType::Plus => EvalResult::String(format!("{}{}", l, r)),
+                    TokenType::Minus => if l.ends_with(r) {  // If `l` ends with `r`, remove `r` from `l`.
+                        EvalResult::String(l[..l.len() - r.len()].to_string())
+                    } else {
+                        left
                     }
-                }
+                    
+                    TokenType::Greater => EvalResult::Number(if l > r { 1.0 } else { 0.0 }),
+                    TokenType::GreaterEqual => EvalResult::Number(if l >= r { 1.0 } else { 0.0 }),
+                    TokenType::Less => EvalResult::Number(if l < r { 1.0 } else { 0.0 }),
+                    TokenType::LessEqual => EvalResult::Number(if l <= r { 1.0 } else { 0.0 }),
+                    TokenType::BangEqual => EvalResult::Number(if l != r { 1.0 } else { 0.0 }),
+                    TokenType::EqualEqual => EvalResult::Number(if l == r { 1.0 } else { 0.0 }),
+
+                    _ => unreachable!(),
+                },
+
+                (EvalResult::String(l), EvalResult::Number(r)) => match operator.token_type {
+                    TokenType::Plus => EvalResult::String(format!("{}{}", l, r)),
+                    TokenType::Minus => if l.ends_with(&r.to_string()) {  // If `l` ends with `r`, remove `r` from `l`.
+                        EvalResult::String(l[..l.len() - r.to_string().len()].to_string())
+                    } else {
+                        left
+                    },
+                    TokenType::Star => {
+                        // Repeat 'l' 'r' number of times.
+                        let mut result = String::new();
+                        for _ in 0..r.floor() as usize {
+                            result.push_str(l);
+                        }
+                        EvalResult::String(result)
+                    },
+                    TokenType::Slash => {
+                        // Calculate the length of `l`.  Divide that length by the ceiling value of `r`.  That number is the length of the substring of `l` to return.
+                        let substring_length = ((l.len() as f64) / r.ceil()) as usize;
+                        EvalResult::String(l[..substring_length].to_string())
+                    },
+                    _ => unreachable!(),
+                },
+
+                (EvalResult::Number(l), EvalResult::String(r)) => match operator.token_type {
+                    TokenType::Plus => EvalResult::String(format!("{}{}", l, r)),
+                    _ => unreachable!(),
+                },
+
                 _ => unreachable!(),
             }
         }
         Expr::Grouping(expr) => eval_ast(expr),
         Expr::Literal(value) => match value.token_type {
             TokenType::Number => EvalResult::Number(value.lexeme.parse().unwrap()),
-            TokenType::String => EvalResult::String(value.lexeme.clone()),
+            TokenType::String => EvalResult::String(value.lexeme[1..value.lexeme.len() - 1].replace("\"\"", "\"").to_string()),
             TokenType::Null => EvalResult::Null,
             TokenType::True => EvalResult::Number(1.0),
             TokenType::False => EvalResult::Number(0.0),
@@ -142,6 +188,25 @@ mod tests {
         test_eval("(1+2)*3", EvalResult::Number(9.0));
         test_eval("1+2*3+4/5", EvalResult::Number(7.8));
         test_eval("1+2*3+4/5*6", EvalResult::Number(11.8));
+        test_eval("\"Hello!\"", EvalResult::String("Hello!".to_string()));
+        test_eval("\"Hello\"\"World\"", EvalResult::String("Hello\"World".to_string()));
+        test_eval("\"Hello\" + \" \" + \"World\"", EvalResult::String("Hello World".to_string()));
+        test_eval("\"abcdefg\" - \"testing\"", EvalResult::String("abcdefg".to_string()));
+        test_eval("\"abcdefg\" - \"efg\"", EvalResult::String("abcd".to_string()));
+        test_eval("\"12345\" + 6", EvalResult::String("123456".to_string()));
+        test_eval("6 + \"12345\"", EvalResult::String("612345".to_string()));
+        test_eval("\"12345\" - 6", EvalResult::String("12345".to_string()));
+        test_eval("\"12345\" - 45", EvalResult::String("123".to_string()));
+        test_eval("\"12345678\" / 2", EvalResult::String("1234".to_string()));
+        test_eval("\"12345678\" / 3", EvalResult::String("12".to_string()));
+        test_eval("\"12345678\" / 4", EvalResult::String("12".to_string()));
+        test_eval("\"12345678\" / 5", EvalResult::String("1".to_string()));
+        test_eval("\"123\" * 3", EvalResult::String("123123123".to_string()));
+
+        // Not sure if these are required cases.  They're weird.
+        // test_eval("\"123\" * 3.1", EvalResult::String("123123123".to_string()));
+        // test_eval("\"123\" * 3.6", EvalResult::String("1231231231".to_string()));
+        // test_eval("\"123\" * 3.7", EvalResult::String("12312312312".to_string()));
     }
 
     fn test_eval(input: &str, expected: EvalResult) {
@@ -160,7 +225,7 @@ mod tests {
             None => { panic!("Syntax error.") },
         };
 
-        println!("{:}", expr);
+        // println!("{:}", expr);
         
         let result = eval_ast(&expr);
         assert_eq!(result, expected);

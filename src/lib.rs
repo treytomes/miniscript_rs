@@ -26,8 +26,8 @@ impl Miniscript {
     }
 
     pub fn run(&self, code: &str) -> bool {
-        // Placeholder for your language execution logic
-        println!("Executing code: {}", code);
+        // // Placeholder for your language execution logic
+        // println!("Executing code: {}", code);
 
         let mut scanner = Scanner::new(code);
         scanner.scan_tokens();
@@ -40,8 +40,9 @@ impl Miniscript {
         let mut parser = Parser::new(scanner.tokens);
         match parser.parse() {
             Some(expr) => {
-                println!("AST: {}", expr);
-                println!("Result: {}", eval_ast(&expr));
+                // println!("AST: {}", expr);
+                // println!("Result: {}", eval_ast(&expr));
+                println!("{}", eval_ast(&expr));
             },
             None => println!("Syntax error."),
         };

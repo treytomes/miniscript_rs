@@ -142,10 +142,17 @@ impl Scanner {
     }
 
     fn string(&mut self) {
-        while self.peek() != '"' && !self.is_at_end() {
-            if self.peek() == '\n' {
-                self.line += 1;
+        while !self.is_at_end() {
+            match self.peek() {
+                '\n' => self.line += 1,
+                '"' => if self.peek_next() == '"' {
+                    self.advance();
+                } else {
+                    break;
+                },
+                _ => {},
             }
+
             self.advance();
           }
       
