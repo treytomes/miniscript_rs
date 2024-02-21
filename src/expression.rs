@@ -17,9 +17,9 @@ pub fn is_truthy(value: EvalResult) -> bool {
     }
 }
 
-// pub fn is_falsy(value: EvalResult) -> bool {
-//     !is_truthy(value)
-// }
+pub fn is_falsy(value: EvalResult) -> bool {
+    !is_truthy(value)
+}
 
 pub fn format_ast(expr: &Expr) -> String {
     match expr {
@@ -34,14 +34,27 @@ pub fn eval_ast(expr: &Expr) -> EvalResult {
     match expr {
         Expr::Binary(left, operator, right) => {
             let left = eval_ast(left);
+            if operator.token_type == TokenType::And {
+                if is_falsy(left) {
+                    return EvalResult::Number(0.0);
+                } else {
+                    let right = eval_ast(right);
+                    return EvalResult::Number(if is_truthy(right) { 1.0 } else { 0.0 });
+                }
+
+            } else if operator.token_type == TokenType::Or {
+                if is_truthy(left) {
+                    return EvalResult::Number(1.0);
+                } else {
+                    let right = eval_ast(right);
+                    return EvalResult::Number(if is_truthy(right) { 1.0 } else { 0.0 });
+                }
+            }
+
             let right = eval_ast(right);
 
             match (&left, &right) {
                 (EvalResult::Number(l), EvalResult::Number(r)) => match operator.token_type {
-                    // TODO: Think about shortcutting when it's time.
-                    TokenType::And => EvalResult::Number(if is_truthy(left) && is_truthy(right) { 1.0 } else { 0.0 }),
-                    TokenType::Or => EvalResult::Number(if is_truthy(left) || is_truthy(right) { 1.0 } else { 0.0 }),
-                    
                     TokenType::Plus => EvalResult::Number(l + r),
                     TokenType::Minus => EvalResult::Number(l - r),
                     TokenType::Star => EvalResult::Number(l * r),
