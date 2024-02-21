@@ -40,16 +40,6 @@ impl ErrorReporter {
         self.errors.last().unwrap().clone()
     }
 
-    fn error_exists_for_line(&self, line: i64) -> bool {
-        for error in &self.errors {
-            if error.line == line {
-                return true;
-            }
-        }
-
-        false
-    }
-
     pub fn had_error(&self) -> bool {
         self.errors.len() > 0
     }
