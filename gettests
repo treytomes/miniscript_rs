@@ -1,0 +1,5 @@
+#!/bin/bash
+
+wget https://raw.githubusercontent.com/sebnozzi/miniscript.ts/main/test/suites/OwnTestSuite.txt
+wget https://raw.githubusercontent.com/JoeStrout/miniscript/master/TestSuite.txt
+
