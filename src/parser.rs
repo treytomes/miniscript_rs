@@ -1,4 +1,4 @@
-use crate::{error_reporter::ErrorReporter, Expr, Token, TokenType};
+use crate::{error_reporter::ErrorReporter, statement::Stmt, Expr, Token, TokenType};
 
 // Define a custom error that can be returned from a function.
 #[derive(Debug)]
@@ -30,7 +30,7 @@ impl Parser {
 
     fn check(&self, token_type: TokenType) -> bool {
         if self.is_at_end() {
-            return false;
+            return token_type == TokenType::EOF;
         }
 
         self.peek().token_type == token_type
@@ -40,6 +40,7 @@ impl Parser {
         self.tokens[self.current as usize - 1].clone()
     }
 
+    // Return the current token; move the pointer to the next token.
     fn advance(&mut self) -> Token {
         if !self.is_at_end() {
             self.current += 1;
@@ -60,12 +61,53 @@ impl Parser {
         false
     }
 
-    pub fn parse(&mut self, reporter: &mut ErrorReporter) -> Option<Expr> {
-        match self.expression(reporter) {
-            Ok(expr) => Some(expr),
-            Err(_err) => {
-                None
+    pub fn parse(&mut self, reporter: &mut ErrorReporter) -> Result<Vec<Stmt>, ParseError> {
+        self.program(reporter)
+    }
+
+    fn program(&mut self, reporter: &mut ErrorReporter) -> Result<Vec<Stmt>, ParseError> {
+        let mut stmts = Vec::new();
+
+        while !self.is_at_end() {
+            let stmt = self.statement(reporter)?;
+            stmts.push(stmt);
+        }
+
+        Ok(stmts)
+    }
+
+    fn statement(&mut self, reporter: &mut ErrorReporter) -> Result<Stmt, ParseError> {
+        if self.match_token(&[TokenType::Print]) {
+            return self.print_stmt(reporter);
+        }
+
+        self.expr_stmt(reporter)
+    }
+
+    fn expr_stmt(&mut self, reporter: &mut ErrorReporter) -> Result<Stmt, ParseError> {
+        let expr = self.expression(reporter)?;
+        self.end_of_stmt(reporter)?;
+        Ok(Stmt::Expression(expr))
+    }
+
+    fn print_stmt(&mut self, reporter: &mut ErrorReporter) -> Result<Stmt, ParseError> {
+        let expr = self.expression(reporter)?;
+        self.end_of_stmt(reporter)?;
+        Ok(Stmt::Print(expr))
+    }
+
+    fn end_of_stmt(&mut self, reporter: &mut ErrorReporter) -> Result<(), ParseError> {
+        let mut eos_count = 0;
+        while self.match_token(&[TokenType::SemiColon, TokenType::NewLine, TokenType::EOF]) {
+            eos_count += 1;
+            if self.is_at_end() {
+                break;
             }
+        }
+        if eos_count > 0 {
+            Ok(())
+        } else {
+            self.error(self.peek(), "Expected ';', EOL, or EOF.", reporter)
         }
     }
 
@@ -216,12 +258,15 @@ mod tests {
         scanner.scan_tokens(&mut reporter);
 
         let mut parser = Parser::new(scanner.tokens);
-        let expr = match parser.parse(&mut reporter) {
-            Some(expr) => expr,
-            None => { panic!("Syntax error.") },
+        let prgm = match parser.parse(&mut reporter) {
+            Ok(prgm) => prgm,
+            Err(err) => {
+                println!("{:?}", err);
+                panic!("Syntax error.");
+            },
         };
 
-        let result = format!("{}", expr);
+        let result = format!("{:}", prgm[0]); // Assuming we are only running a single line.
 
         assert_eq!(result, expected_output);
     }

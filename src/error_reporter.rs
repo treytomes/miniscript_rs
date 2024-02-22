@@ -1,14 +1,12 @@
 use crate::{error_stage::ErrorStage, Error, Token, TokenType};
 
 pub struct ErrorReporter {
-    had_errors: bool,
     errors: Vec<Error>,
 }
 
 impl ErrorReporter {
     pub fn new() -> Self {
         Self {
-            had_errors: false,
             errors: Vec::new(),
         }
     }
@@ -64,7 +62,6 @@ impl ErrorReporter {
     }
 
     pub fn dump(&self) {
-        println!("Begin dump.");
         let mut current_line = -1;
         for error in &self.errors {
             if error.line != current_line {
@@ -72,6 +69,5 @@ impl ErrorReporter {
                 current_line = error.line;
             }
         }
-        println!("End dump.");
     }
 }

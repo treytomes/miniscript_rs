@@ -1,12 +1,24 @@
 use std::fmt::{Debug, Display};
 
-use crate::{error_reporter::ErrorReporter, token::Token, Error, EvalResult, TokenType};
+use crate::{error_reporter::ErrorReporter, statement::Stmt, token::Token, Error, EvalResult, TokenType};
 
+#[derive(Clone, PartialEq)]
 pub enum Expr {
     Binary(Box<Expr>, Token, Box<Expr>),
     Grouping(Box<Expr>),
     Literal(Token),
     Unary(Token, Box<Expr>),
+}
+
+impl Expr {
+    pub fn line(&self) -> i64 {
+        match self {
+            Expr::Binary(_, op, _) =>  op.line,
+            Expr::Grouping(expr) => expr.line(),
+            Expr::Literal(token) => token.line,
+            Expr::Unary(op, _) => op.line,
+        }
+    }
 }
 
 pub fn is_truthy(value: EvalResult) -> bool {
@@ -68,7 +80,7 @@ pub fn eval_ast(expr: &Expr, reporter: &mut ErrorReporter) -> Result<EvalResult,
                     TokenType::BangEqual => Ok(EvalResult::Number(if l != r { 1.0 } else { 0.0 })),
                     TokenType::EqualEqual => Ok(EvalResult::Number(if l == r { 1.0 } else { 0.0 })),
                     
-                    _ => Err(reporter.runtime_error(operator.line, "Syntax error.")),
+                    _ => Err(reporter.runtime_error(operator.line, "Invalid number/number operation.")),
                 },
 
                 (EvalResult::String(l), EvalResult::String(r)) => match operator.token_type {
@@ -86,7 +98,7 @@ pub fn eval_ast(expr: &Expr, reporter: &mut ErrorReporter) -> Result<EvalResult,
                     TokenType::BangEqual => Ok(EvalResult::Number(if l != r { 1.0 } else { 0.0 })),
                     TokenType::EqualEqual => Ok(EvalResult::Number(if l == r { 1.0 } else { 0.0 })),
 
-                    _ => Err(reporter.runtime_error(operator.line, "Syntax error.")),
+                    _ => Err(reporter.runtime_error(operator.line, "Invalid string/string operation.")),
                 },
 
                 (EvalResult::String(l), EvalResult::Number(r)) => match operator.token_type {
@@ -109,15 +121,15 @@ pub fn eval_ast(expr: &Expr, reporter: &mut ErrorReporter) -> Result<EvalResult,
                         let substring_length = ((l.len() as f64) / r.ceil()) as usize;
                         Ok(EvalResult::String(l[..substring_length].to_string()))
                     },
-                    _ => Err(reporter.runtime_error(operator.line, "Syntax error.")),
+                    _ => Err(reporter.runtime_error(operator.line, "Invalid string/number operation.")),
                 },
 
                 (EvalResult::Number(l), EvalResult::String(r)) => match operator.token_type {
                     TokenType::Plus => Ok(EvalResult::String(format!("{}{}", l, r))),
-                    _ => Err(reporter.runtime_error(operator.line, "Syntax error.")),
+                    _ => Err(reporter.runtime_error(operator.line, "Invalid number/string operation.")),
                 },
 
-                _ => Err(reporter.runtime_error(operator.line, "Syntax error.")),
+                _ => Err(reporter.runtime_error(operator.line, "Unknown operation type.")),
             }
         },
         Expr::Grouping(expr) => eval_ast(expr, reporter),
@@ -143,6 +155,28 @@ pub fn eval_ast(expr: &Expr, reporter: &mut ErrorReporter) -> Result<EvalResult,
     }
 }
 
+pub fn eval_stmts(stmts: &Vec<Stmt>, reporter: &mut ErrorReporter) -> Result<EvalResult, Error> {
+    let mut result = EvalResult::Null;
+    for stmt in stmts {
+        match stmt {
+            Stmt::Expression(expr) => {
+                result = eval_ast(expr, reporter)?;
+                // TODO: Store this in some type of REPL variable?
+            },
+            Stmt::Print(expr) => {
+                println!("{:}", eval_ast(expr, reporter)?);
+                result = EvalResult::Null;
+            },
+            _ => {
+                return Err(reporter.runtime_error(stmt.line(), "Syntax error."))
+            },
+        }
+    }
+    
+    // The final result will be returned.
+    Ok(result)
+}
+
 impl Display for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", format_ast(self))
@@ -157,7 +191,7 @@ impl Debug for Expr {
 
 #[cfg(test)]
 mod tests {
-    use crate::{error_reporter::ErrorReporter, expression::eval_ast, parser::Parser, scanner::Scanner, EvalResult, Expr, Token, TokenType};
+    use crate::{error_reporter::ErrorReporter, expression::eval_ast, parser::Parser, scanner::Scanner, statement::Stmt, EvalResult, Expr, Token, TokenType};
 
     #[test]
     fn test_print_ast() {
@@ -190,7 +224,7 @@ mod tests {
         test_eval("1<=1", EvalResult::Number(1.0));
         test_eval("1==1", EvalResult::Number(1.0));
         test_eval("1!=1", EvalResult::Number(0.0));
-        test_eval("1 abd 1", EvalResult::Number(1.0));
+        test_eval("1 and 1", EvalResult::Number(1.0));
         test_eval("1 or 1", EvalResult::Number(1.0));
         test_eval("1 and 0", EvalResult::Number(0.0));
         test_eval("1 or 0", EvalResult::Number(1.0));
@@ -236,16 +270,24 @@ mod tests {
         // }
 
         let mut parser = Parser::new(scanner.tokens);
-        let expr = match parser.parse(&mut reporter) {
-            Some(expr) => expr,
-            None => { panic!("Syntax error.") },
+        let stmts = match parser.parse(&mut reporter) {
+            Ok(stmts) => stmts,
+            Err(err) => {
+                println!("{:?}", err);
+                panic!("Syntax error.");
+             },
         };
 
         // println!("{:}", expr);
         
-        match eval_ast(&expr, &mut reporter) {
-            Ok(result) => assert_eq!(result, expected),
-            Err(err) => panic!("{}", err),
+        match &stmts[0] {
+            Stmt::Expression(expr) => {
+                match eval_ast(&expr, &mut reporter) {
+                    Ok(result) => assert_eq!(result, expected),
+                    Err(err) => panic!("{}", err),
+                }
+            },
+            _ => { panic!("Expected an expression statement.") },
         }
     }
 }

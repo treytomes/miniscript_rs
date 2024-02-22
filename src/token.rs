@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use crate::token_type::TokenType;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
@@ -21,20 +21,16 @@ impl Token {
 
 impl std::fmt::Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{:?} {}",
-            self.token_type, self.lexeme,
-        )
+        if self.lexeme.trim().len() > 0 {
+            write!(f, "{:?} {}", self.token_type, self.lexeme)
+        } else {
+            write!(f, "{:?}", self.token_type)
+        }
     }
 }
 
 impl Debug for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{:?} {}",
-            self.token_type, self.lexeme,
-        )
+        write!(f, "{:}", self)
     }
 }

@@ -7,9 +7,11 @@ mod eval_result;
 mod expression;
 mod parser;
 mod scanner;
+mod statement;
 mod token;
 mod token_type;
 
+use expression::eval_stmts;
 use scanner::Scanner;
 use error_reporter::ErrorReporter;
 
@@ -19,7 +21,7 @@ pub use expression::{Expr, format_ast};
 pub use token::Token;
 pub use token_type::TokenType;
 
-use crate::{expression::eval_ast, parser::Parser};
+use crate::parser::Parser;
 
 pub struct Miniscript {
     pub had_error: bool,
@@ -50,16 +52,25 @@ impl Miniscript {
 
         let mut parser = Parser::new(scanner.tokens);
         match parser.parse(&mut reporter) {
-            Some(expr) => {
+            Ok(stmts) => {
                 // println!("AST: {}", expr);
                 // println!("Result: {}", eval_ast(&expr));
 
-                match eval_ast(&expr, &mut reporter) {
-                    Ok(result) => println!("{}", result),
+                match eval_stmts(&stmts, &mut reporter) {
+                    Ok(result) => {
+                        match result {
+                            EvalResult::Null => {
+                                // Do nothing.
+                            },
+                            _ => {
+                                println!("{}", result);
+                            }
+                        }
+                    },
                     Err(_err) => { /* Ignore errors for now; we'll dump them at the end. */}
                 }
             },
-            None => println!("Syntax error."),
+            Err(_err) => { /* Ignore errors for now; we'll dump them at the end. */ },
         };
         
         self.had_error = reporter.had_error();

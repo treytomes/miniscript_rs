@@ -102,7 +102,10 @@ impl Scanner {
             ' ' | '\r' | '\t' => {}
 
             // Increment the line count on a newline.
-            '\n' => self.line += 1,
+            '\n' => {
+                self.line += 1;
+                self.add_token(TokenType::NewLine);
+            },
 
             // Report an error on any other character.
             _ => {
