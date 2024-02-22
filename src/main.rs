@@ -8,10 +8,17 @@ fn print_usage() {
 }
 
 fn run_file() -> i32 {
-    if Miniscript::new().run_file(&std::env::args().nth(1).unwrap()) {
+    let mut miniscript = Miniscript::new();
+    let filename = std::env::args().nth(1).unwrap();
+    let result = miniscript.run_file(&filename);
+    if result {
         0
     } else {
-        65
+        if miniscript.had_runtime_error {
+            70
+        } else { // if miniscript.had_error {
+            65
+        }
     }
 }
 

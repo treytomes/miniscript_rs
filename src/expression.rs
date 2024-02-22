@@ -68,7 +68,7 @@ pub fn eval_ast(expr: &Expr, reporter: &mut ErrorReporter) -> Result<EvalResult,
                     TokenType::BangEqual => Ok(EvalResult::Number(if l != r { 1.0 } else { 0.0 })),
                     TokenType::EqualEqual => Ok(EvalResult::Number(if l == r { 1.0 } else { 0.0 })),
                     
-                    _ => Err(reporter.error_line(operator.line, "Syntax error.")),
+                    _ => Err(reporter.runtime_error(operator.line, "Syntax error.")),
                 },
 
                 (EvalResult::String(l), EvalResult::String(r)) => match operator.token_type {
@@ -86,7 +86,7 @@ pub fn eval_ast(expr: &Expr, reporter: &mut ErrorReporter) -> Result<EvalResult,
                     TokenType::BangEqual => Ok(EvalResult::Number(if l != r { 1.0 } else { 0.0 })),
                     TokenType::EqualEqual => Ok(EvalResult::Number(if l == r { 1.0 } else { 0.0 })),
 
-                    _ => Err(reporter.error_line(operator.line, "Syntax error.")),
+                    _ => Err(reporter.runtime_error(operator.line, "Syntax error.")),
                 },
 
                 (EvalResult::String(l), EvalResult::Number(r)) => match operator.token_type {
@@ -109,15 +109,15 @@ pub fn eval_ast(expr: &Expr, reporter: &mut ErrorReporter) -> Result<EvalResult,
                         let substring_length = ((l.len() as f64) / r.ceil()) as usize;
                         Ok(EvalResult::String(l[..substring_length].to_string()))
                     },
-                    _ => Err(reporter.error_line(operator.line, "Syntax error.")),
+                    _ => Err(reporter.runtime_error(operator.line, "Syntax error.")),
                 },
 
                 (EvalResult::Number(l), EvalResult::String(r)) => match operator.token_type {
                     TokenType::Plus => Ok(EvalResult::String(format!("{}{}", l, r))),
-                    _ => Err(reporter.error_line(operator.line, "Syntax error.")),
+                    _ => Err(reporter.runtime_error(operator.line, "Syntax error.")),
                 },
 
-                _ => Err(reporter.error_line(operator.line, "Syntax error.")),
+                _ => Err(reporter.runtime_error(operator.line, "Syntax error.")),
             }
         },
         Expr::Grouping(expr) => eval_ast(expr, reporter),
@@ -127,7 +127,7 @@ pub fn eval_ast(expr: &Expr, reporter: &mut ErrorReporter) -> Result<EvalResult,
             TokenType::Null => Ok(EvalResult::Null),
             TokenType::True => Ok(EvalResult::Number(1.0)),
             TokenType::False => Ok(EvalResult::Number(0.0)),
-            _ => Err(reporter.error_line(value.line, "Syntax error.")),
+            _ => Err(reporter.runtime_error(value.line, "Syntax error.")),
         },
         Expr::Unary(operator, expr) => {
             let expr = eval_ast(expr, reporter)?;
@@ -135,9 +135,9 @@ pub fn eval_ast(expr: &Expr, reporter: &mut ErrorReporter) -> Result<EvalResult,
                 EvalResult::Number(value) => match operator.token_type {
                     TokenType::Minus => Ok(EvalResult::Number(-value)),
                     TokenType::Not => Ok(EvalResult::Number(if is_truthy(expr) { 0.0 } else { 1.0 })),
-                    _ => Err(reporter.error_line(operator.line, "Syntax error.")),
+                    _ => Err(reporter.runtime_error(operator.line, format!("Unknown operator: {:}", operator.lexeme).as_str())),
                 },
-                _ => Err(reporter.error_line(operator.line, "Syntax error.")),
+                _ => Err(reporter.runtime_error(operator.line, format!("Expression type not allowed: {:}", expr).as_str())),
             }
         },
     }

@@ -2,6 +2,7 @@
 
 mod error;
 mod error_reporter;
+mod error_stage;
 mod eval_result;
 mod expression;
 mod parser;
@@ -21,14 +22,19 @@ pub use token_type::TokenType;
 use crate::{expression::eval_ast, parser::Parser};
 
 pub struct Miniscript {
+    pub had_error: bool,
+    pub had_runtime_error: bool,
 }
 
 impl Miniscript {
     pub fn new() -> Miniscript {
-        Self {}
+        Self {
+            had_error: false,
+            had_runtime_error: false,
+        }
     }
 
-    pub fn run(&self, code: &str) -> bool {
+    pub fn run(&mut self, code: &str) -> bool {
         let mut reporter = ErrorReporter::new();
 
         // // Placeholder for your language execution logic
@@ -56,13 +62,16 @@ impl Miniscript {
             None => println!("Syntax error."),
         };
         
+        self.had_error = reporter.had_error();
+        self.had_runtime_error = reporter.had_runtime_error();
+
         if reporter.had_error() {
             reporter.dump();
         }
         reporter.had_error()
     }
 
-    pub fn run_file(&self, path: &str) -> bool {
+    pub fn run_file(&mut self, path: &str) -> bool {
         // Placeholder for your language execution logic
         println!("Loading: {}", path);
 
