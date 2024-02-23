@@ -1,5 +1,6 @@
 // src/lib.rs
 
+mod environment;
 mod error;
 mod error_reporter;
 mod error_stage;
@@ -11,6 +12,7 @@ mod statement;
 mod token;
 mod token_type;
 
+use environment::Environment;
 use expression::eval_stmts;
 use scanner::Scanner;
 use error_reporter::ErrorReporter;
@@ -24,6 +26,7 @@ pub use token_type::TokenType;
 use crate::parser::Parser;
 
 pub struct Miniscript {
+    pub environment: Environment,
     pub had_error: bool,
     pub had_runtime_error: bool,
 }
@@ -31,6 +34,7 @@ pub struct Miniscript {
 impl Miniscript {
     pub fn new() -> Miniscript {
         Self {
+            environment: Environment::new(),
             had_error: false,
             had_runtime_error: false,
         }
@@ -45,38 +49,41 @@ impl Miniscript {
         let mut scanner = Scanner::new(code);
         scanner.scan_tokens(&mut reporter);
 
-        // // Write the tokens to stdout.
+        // Write the tokens to stdout.
         // for token in &scanner.tokens {
         //     println!("Token: {:?}", token);
         // }
 
         let mut parser = Parser::new(scanner.tokens);
-        match parser.parse(&mut reporter) {
-            Ok(stmts) => {
-                // println!("AST: {}", expr);
-                // println!("Result: {}", eval_ast(&expr));
-
-                match eval_stmts(&stmts, &mut reporter) {
-                    Ok(result) => {
-                        match result {
-                            EvalResult::Null => {
-                                // Do nothing.
-                            },
-                            _ => {
-                                println!("{}", result);
-                            }
-                        }
-                    },
-                    Err(_err) => { /* Ignore errors for now; we'll dump them at the end. */}
-                }
+        
+        let stmts = match parser.parse(&mut reporter) {
+            Ok(stmts) => stmts,
+            _ => {
+                /* Errors will be handled later. */
+                Vec::new()
             },
-            Err(_err) => { /* Ignore errors for now; we'll dump them at the end. */ },
         };
+
+        // // Print all statements to stdout.
+        // for stmt in &stmts {
+        //     println!("Statement: {:?}", stmt);
+        // }
+
+        let result = match eval_stmts(&mut self.environment, &stmts, &mut reporter) {
+            Ok(result) => result,
+            _ => {
+                /* Errors will be handled later. */
+                EvalResult::Null
+            }
+        };
+        if result != EvalResult::Null {
+            println!("{}", result);
+        }
         
         self.had_error = reporter.had_error();
         self.had_runtime_error = reporter.had_runtime_error();
 
-        if reporter.had_error() {
+        if reporter.had_error() || reporter.had_runtime_error() {
             reporter.dump();
         }
         reporter.had_error()

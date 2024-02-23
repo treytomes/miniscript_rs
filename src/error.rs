@@ -1,4 +1,5 @@
 use crate::error_stage::ErrorStage;
+use std::error::Error as StdError;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Error {
@@ -6,6 +7,12 @@ pub struct Error {
     location: String,
     message: String,
     pub stage: ErrorStage,
+}
+
+impl StdError for Error {
+    fn description(&self) -> &str {
+        &self.message
+    }
 }
 
 impl Error {

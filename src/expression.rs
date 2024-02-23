@@ -1,6 +1,6 @@
 use std::fmt::{Debug, Display};
 
-use crate::{error_reporter::ErrorReporter, statement::Stmt, token::Token, Error, EvalResult, TokenType};
+use crate::{environment::Environment, error_reporter::ErrorReporter, statement::Stmt, token::Token, Error, EvalResult, TokenType};
 
 #[derive(Clone, PartialEq)]
 pub enum Expr {
@@ -43,15 +43,34 @@ pub fn format_ast(expr: &Expr) -> String {
     }
 }
 
-pub fn eval_ast(expr: &Expr, reporter: &mut ErrorReporter) -> Result<EvalResult, Error> {
+pub fn eval_ast(environment: &mut Environment, expr: &Expr, reporter: &mut ErrorReporter) -> Result<EvalResult, Error> {
     match expr {
         Expr::Binary(left, operator, right) => {
-            let left = eval_ast(left, reporter)?;
+            if operator.token_type == TokenType::Equal {
+                println!("Found an equal!");
+                match left.as_ref() {
+                    Expr::Literal(left_token) => {
+                        if left_token.token_type == TokenType::Identifier {
+                            let right = eval_ast(environment, right, reporter)?;
+                            environment.set(&left_token.lexeme, &right);
+                            println!("Assigning {:} = {:}", left_token.lexeme, right);
+                            return Ok(right);
+                        } else {
+                            return Err(reporter.runtime_error(operator.line, "Invalid assignment target."));
+                        }
+                    }
+                    _ => {
+                        return Err(reporter.runtime_error(operator.line, "Invalid assignment target."));
+                    }
+                }
+            }
+
+            let left = eval_ast(environment, left, reporter)?;
             if operator.token_type == TokenType::And {
                 if is_falsy(left) {
                     return Ok(EvalResult::Number(0.0));
                 } else {
-                    let right = eval_ast(right, reporter)?;
+                    let right = eval_ast(environment, right, reporter)?;
                     return Ok(EvalResult::Number(if is_truthy(right) { 1.0 } else { 0.0 }));
                 }
 
@@ -59,12 +78,12 @@ pub fn eval_ast(expr: &Expr, reporter: &mut ErrorReporter) -> Result<EvalResult,
                 if is_truthy(left) {
                     return Ok(EvalResult::Number(1.0));
                 } else {
-                    let right = eval_ast(right, reporter)?;
+                    let right = eval_ast(environment, right, reporter)?;
                     return Ok(EvalResult::Number(if is_truthy(right) { 1.0 } else { 0.0 }));
                 }
             }
 
-            let right = eval_ast(right, reporter)?;
+            let right = eval_ast(environment, right, reporter)?;
 
             match (&left, &right) {
                 (EvalResult::Number(l), EvalResult::Number(r)) => match operator.token_type {
@@ -132,17 +151,27 @@ pub fn eval_ast(expr: &Expr, reporter: &mut ErrorReporter) -> Result<EvalResult,
                 _ => Err(reporter.runtime_error(operator.line, "Unknown operation type.")),
             }
         },
-        Expr::Grouping(expr) => eval_ast(expr, reporter),
+        Expr::Grouping(expr) => eval_ast(environment, expr, reporter),
         Expr::Literal(value) => match value.token_type {
             TokenType::Number => Ok(EvalResult::Number(value.lexeme.parse().unwrap())),
             TokenType::String => Ok(EvalResult::String(value.lexeme[1..value.lexeme.len() - 1].replace("\"\"", "\"").to_string())),
             TokenType::Null => Ok(EvalResult::Null),
             TokenType::True => Ok(EvalResult::Number(1.0)),
             TokenType::False => Ok(EvalResult::Number(0.0)),
+            TokenType::Identifier => {
+                match environment.get(&value.lexeme) {
+                    Ok(v) => {
+                        Ok(v.clone())
+                    },
+                    Err(e) => {
+                        Err(reporter.runtime_error(value.line, e.as_str()))
+                    },
+                }
+            },
             _ => Err(reporter.runtime_error(value.line, "Syntax error.")),
         },
         Expr::Unary(operator, expr) => {
-            let expr = eval_ast(expr, reporter)?;
+            let expr = eval_ast(environment, expr, reporter)?;
             match expr {
                 EvalResult::Number(value) => match operator.token_type {
                     TokenType::Minus => Ok(EvalResult::Number(-value)),
@@ -155,21 +184,25 @@ pub fn eval_ast(expr: &Expr, reporter: &mut ErrorReporter) -> Result<EvalResult,
     }
 }
 
-pub fn eval_stmts(stmts: &Vec<Stmt>, reporter: &mut ErrorReporter) -> Result<EvalResult, Error> {
+pub fn eval_stmts(environment: &mut Environment, stmts: &Vec<Stmt>, reporter: &mut ErrorReporter) -> Result<EvalResult, Error> {
     let mut result = EvalResult::Null;
     for stmt in stmts {
         match stmt {
             Stmt::Expression(expr) => {
-                result = eval_ast(expr, reporter)?;
-                // TODO: Store this in some type of REPL variable?
+                result = eval_ast(environment, expr, reporter)?;
+                environment.set("_", &result);
             },
             Stmt::Print(expr) => {
-                println!("{:}", eval_ast(expr, reporter)?);
+                println!("{:}", eval_ast(environment, expr, reporter)?);
                 result = EvalResult::Null;
             },
-            _ => {
-                return Err(reporter.runtime_error(stmt.line(), "Syntax error."))
-            },
+            Stmt::Assignment(name, value) => {
+                let value = eval_ast(environment, value, reporter)?;
+                environment.set(&name, &value);
+            }
+            // _ => {
+            //     return Err(reporter.runtime_error(stmt.line(), "Syntax error."))
+            // },
         }
     }
     
@@ -191,7 +224,7 @@ impl Debug for Expr {
 
 #[cfg(test)]
 mod tests {
-    use crate::{error_reporter::ErrorReporter, expression::eval_ast, parser::Parser, scanner::Scanner, statement::Stmt, EvalResult, Expr, Token, TokenType};
+    use crate::{environment::Environment, error_reporter::ErrorReporter, expression::eval_ast, parser::Parser, scanner::Scanner, statement::Stmt, EvalResult, Expr, Token, TokenType};
 
     #[test]
     fn test_print_ast() {
@@ -258,13 +291,14 @@ mod tests {
     }
 
     fn test_eval(input: &str, expected: EvalResult) {
+        let mut environment = Environment::new();
         let mut reporter = ErrorReporter::new();
 
         let mut scanner = Scanner::new(input);
         scanner.scan_tokens(&mut reporter);
 
 
-        // // Print the tokens.
+        // Print the tokens.
         // for token in &scanner.tokens {
         //     println!("{:?}", token);
         // }
@@ -282,7 +316,7 @@ mod tests {
         
         match &stmts[0] {
             Stmt::Expression(expr) => {
-                match eval_ast(&expr, &mut reporter) {
+                match eval_ast(&mut environment, &expr, &mut reporter) {
                     Ok(result) => assert_eq!(result, expected),
                     Err(err) => panic!("{}", err),
                 }

@@ -3,59 +3,70 @@ use std::io::{self, Write};
 
 const PROMPT: &str = "> ";
 
-fn print_usage() {
-    println!("Usage: miniscript [script]");
+struct MiniCmd {
+    interpreter: Miniscript,
 }
 
-fn run_file() -> i32 {
-    let mut miniscript = Miniscript::new();
-    let filename = std::env::args().nth(1).unwrap();
-    let result = miniscript.run_file(&filename);
-    if result {
-        0
-    } else {
-        if miniscript.had_runtime_error {
-            70
-        } else { // if miniscript.had_error {
-            65
+impl MiniCmd {
+    pub fn new() -> Self {
+        Self { interpreter: Miniscript::new() }
+    }
+
+    pub fn print_usage(&self) {
+        println!("Usage: miniscript [script]");
+    }
+
+    pub fn run_file(&mut self) -> i32 {
+        let filename = std::env::args().nth(1).unwrap();
+        let result = self.interpreter.run_file(&filename);
+        if result {
+            0
+        } else {
+            if self.interpreter.had_runtime_error {
+                70
+            } else { // if miniscript.had_error {
+                65
+            }
         }
     }
-}
 
-fn run_prompt() {
-    let stdin = io::stdin();
-    let mut stdout = io::stdout();
-
-    loop {
-        print!("{}", PROMPT);
-        stdout.flush().unwrap(); // Ensure the prompt is written out
-
-        let mut input = String::new();
-        stdin.read_line(&mut input).unwrap();
-
-        // Break if the user enters Ctrl+D (EOF).
-        if input.is_empty() {
-            break;
+    pub fn run_prompt(&mut self) {
+        let stdin = io::stdin();
+        let mut stdout = io::stdout();
+    
+        loop {
+            print!("{}", PROMPT);
+            stdout.flush().unwrap(); // Ensure the prompt is written out
+    
+            let mut input = String::new();
+            stdin.read_line(&mut input).unwrap();
+    
+            // Break if the user enters Ctrl+D (EOF).
+            if input.is_empty() {
+                break;
+            }
+    
+            let _output = self.interpreter.run(&input);
+            // println!("{}", output);
         }
-
-        let _output = Miniscript::new().run(&input);
-        // println!("{}", output);
     }
 }
 
 fn main() -> io::Result<()> {
+    let mut minicmd = MiniCmd::new();
+
     // Print the command-line arguments to the screen.
     println!("{:?}", std::env::args());
 
     if std::env::args().len() > 2 {
-        print_usage();
+        minicmd.print_usage();
     } else if std::env::args().len() == 2 {
-        let result = run_file();
+        let result = minicmd.run_file();
         if result != 0 {
             std::process::exit(result);
         }
     } else {
-        run_prompt();
+        minicmd.run_prompt();
     }
 
     Ok(())

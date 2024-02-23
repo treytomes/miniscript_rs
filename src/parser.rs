@@ -1,9 +1,27 @@
+use std::{error::Error, fmt::{self, Display, Formatter}};
+
 use crate::{error_reporter::ErrorReporter, statement::Stmt, Expr, Token, TokenType};
 
 // Define a custom error that can be returned from a function.
 #[derive(Debug)]
 pub enum ParseError {
     UnexpectedToken(Token),
+}
+
+impl Error for ParseError {
+    fn description(&self) -> &str {
+        match self {
+            ParseError::UnexpectedToken(_) => "Unexpected token",
+        }
+    }
+}
+
+impl Display for ParseError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            ParseError::UnexpectedToken(token) => write!(f, "Unexpected token: {:?}", token),
+        }
+    }
 }
 
 pub struct Parser {
@@ -22,6 +40,10 @@ impl Parser {
 
     fn peek(&self) -> Token {
         self.tokens[self.current as usize].clone()
+    }
+
+    fn peek_next(&self) -> Token {
+        self.tokens[(self.current + 1) as usize].clone()
     }
 
     fn is_at_end(&self) -> bool {
@@ -69,8 +91,18 @@ impl Parser {
         let mut stmts = Vec::new();
 
         while !self.is_at_end() {
-            let stmt = self.statement(reporter)?;
-            stmts.push(stmt);
+            // let stmt = self.statement(reporter)?;
+            // stmts.push(stmt);
+
+            match self.statement(reporter) {
+                Ok(stmt) => {
+                    stmts.push(stmt);
+                },
+                Err(_e) => {
+                    // panic!("{:?}", e);
+                    self.synchronize();
+                }
+            }
         }
 
         Ok(stmts)
@@ -79,21 +111,38 @@ impl Parser {
     fn statement(&mut self, reporter: &mut ErrorReporter) -> Result<Stmt, ParseError> {
         if self.match_token(&[TokenType::Print]) {
             return self.print_stmt(reporter);
+        } else if self.peek().token_type == TokenType::Identifier { //} (&[TokenType::Identifier]) {
+            if self.peek_next().token_type == TokenType::Equal {
+                return self.assignment_stmt(reporter);
+            }
         }
 
         self.expr_stmt(reporter)
-    }
-
-    fn expr_stmt(&mut self, reporter: &mut ErrorReporter) -> Result<Stmt, ParseError> {
-        let expr = self.expression(reporter)?;
-        self.end_of_stmt(reporter)?;
-        Ok(Stmt::Expression(expr))
     }
 
     fn print_stmt(&mut self, reporter: &mut ErrorReporter) -> Result<Stmt, ParseError> {
         let expr = self.expression(reporter)?;
         self.end_of_stmt(reporter)?;
         Ok(Stmt::Print(expr))
+    }
+
+    fn assignment_stmt(&mut self, reporter: &mut ErrorReporter) -> Result<Stmt, ParseError> {
+        if !self.match_token(&[TokenType::Identifier]) {
+            return Err(self.error(self.peek(), "Expected identifier.", reporter));
+        }
+        let name = self.previous();
+
+        self.consume(TokenType::Equal, "Expected '=' after identifier.", reporter)?;
+        
+        let expr = self.expression(reporter)?;
+        self.end_of_stmt(reporter)?;
+        return Ok(Stmt::Assignment(name.lexeme.clone(), expr));
+    }
+
+    fn expr_stmt(&mut self, reporter: &mut ErrorReporter) -> Result<Stmt, ParseError> {
+        let expr = self.expression(reporter)?;
+        self.end_of_stmt(reporter)?;
+        Ok(Stmt::Expression(expr))
     }
 
     fn end_of_stmt(&mut self, reporter: &mut ErrorReporter) -> Result<(), ParseError> {
@@ -107,7 +156,7 @@ impl Parser {
         if eos_count > 0 {
             Ok(())
         } else {
-            self.error(self.peek(), "Expected ';', EOL, or EOF.", reporter)
+            Err(self.error(self.peek(), "Expected ';', EOL, or EOF.", reporter))
         }
     }
 
@@ -186,17 +235,7 @@ impl Parser {
     }
 
     fn primary(&mut self, reporter: &mut ErrorReporter) -> Result<Expr, ParseError> {
-        if self.match_token(&[TokenType::False]) {
-            return Ok(Expr::Literal(self.previous()));
-        }
-        if self.match_token(&[TokenType::True]) {
-            return Ok(Expr::Literal(self.previous()));
-        }
-        if self.match_token(&[TokenType::Null]) {
-            return Ok(Expr::Literal(self.previous()));
-        }
-    
-        if self.match_token(&[TokenType::Number, TokenType::String]) {
+        if self.match_token(&[TokenType::False, TokenType::True, TokenType::Null, TokenType::Number, TokenType::String, TokenType::Identifier]) {
             return Ok(Expr::Literal(self.previous()));
         }
     
@@ -215,12 +254,12 @@ impl Parser {
             return Ok(());
         }
 
-        self.error(self.peek(), message, reporter)
+        Err(self.error(self.peek(), message, reporter))
     }
 
-    fn error(&self, token: Token, message: &str, reporter: &mut ErrorReporter) -> Result<(), ParseError> {
+    fn error(&self, token: Token, message: &str, reporter: &mut ErrorReporter) -> ParseError {
         reporter.error_token(token.clone(), message);
-        Err(ParseError::UnexpectedToken(token.clone()))?
+        ParseError::UnexpectedToken(token.clone())
     }
 
     // TODO: In MiniScript, it should be enough to just scan for the EOL.
@@ -228,7 +267,7 @@ impl Parser {
         self.advance();
 
         while !self.is_at_end() {
-            if self.previous().token_type == TokenType::SemiColon {
+            if self.previous().token_type == TokenType::SemiColon || self.previous().token_type == TokenType::NewLine || self.is_at_end() {
                 return;
             }
 
@@ -261,7 +300,8 @@ mod tests {
         let prgm = match parser.parse(&mut reporter) {
             Ok(prgm) => prgm,
             Err(err) => {
-                println!("{:?}", err);
+                println!("ParseError: {:?}", err);
+                println!("\"{:?}\": {:?}", input, expected_output);
                 panic!("Syntax error.");
             },
         };
