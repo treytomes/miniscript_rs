@@ -44,23 +44,27 @@ pub fn format_ast(expr: &Expr) -> String {
 }
 
 pub fn eval_ast(environment: &mut Environment, expr: &Expr, reporter: &mut ErrorReporter) -> Result<EvalResult, Error> {
+    // println!("expr = {}", expr);
+
     match expr {
         Expr::Binary(left, operator, right) => {
             if operator.token_type == TokenType::Equal {
-                println!("Found an equal!");
+                // println!("Found an equal!");
                 match left.as_ref() {
+                    // TODO: The left-hand side of the assignment will need to get beefed up.
                     Expr::Literal(left_token) => {
                         if left_token.token_type == TokenType::Identifier {
                             let right = eval_ast(environment, right, reporter)?;
+                            // TODO: Maybe write an `eval_var_ref`?
                             environment.set(&left_token.lexeme, &right);
-                            println!("Assigning {:} = {:}", left_token.lexeme, right);
+                            // println!("Assigning {:} = {:}", left_token.lexeme, right);
                             return Ok(right);
                         } else {
-                            return Err(reporter.runtime_error(operator.line, "Invalid assignment target."));
+                            return Err(reporter.runtime_error(operator.line, format!("Invalid assignment target: {}", left).as_str()));
                         }
                     }
                     _ => {
-                        return Err(reporter.runtime_error(operator.line, "Invalid assignment target."));
+                        return Err(reporter.runtime_error(operator.line, format!("Invalid assignment target: {}", left).as_str()));
                     }
                 }
             }

@@ -111,10 +111,10 @@ impl Parser {
     fn statement(&mut self, reporter: &mut ErrorReporter) -> Result<Stmt, ParseError> {
         if self.match_token(&[TokenType::Print]) {
             return self.print_stmt(reporter);
-        } else if self.peek().token_type == TokenType::Identifier { //} (&[TokenType::Identifier]) {
-            if self.peek_next().token_type == TokenType::Equal {
-                return self.assignment_stmt(reporter);
-            }
+        // } else if self.peek().token_type == TokenType::Identifier { //} (&[TokenType::Identifier]) {
+        //     if self.peek_next().token_type == TokenType::Equal {
+        //         return self.assignment_stmt(reporter);
+        //     }
         }
 
         self.expr_stmt(reporter)
@@ -126,18 +126,18 @@ impl Parser {
         Ok(Stmt::Print(expr))
     }
 
-    fn assignment_stmt(&mut self, reporter: &mut ErrorReporter) -> Result<Stmt, ParseError> {
-        if !self.match_token(&[TokenType::Identifier]) {
-            return Err(self.error(self.peek(), "Expected identifier.", reporter));
-        }
-        let name = self.previous();
+    // fn assignment_stmt(&mut self, reporter: &mut ErrorReporter) -> Result<Stmt, ParseError> {
+    //     if !self.match_token(&[TokenType::Identifier]) {
+    //         return Err(self.error(self.peek(), "Expected identifier.", reporter));
+    //     }
+    //     let name = self.previous();
 
-        self.consume(TokenType::Equal, "Expected '=' after identifier.", reporter)?;
+    //     self.consume(TokenType::Equal, "Expected '=' after identifier.", reporter)?;
         
-        let expr = self.expression(reporter)?;
-        self.end_of_stmt(reporter)?;
-        return Ok(Stmt::Assignment(name.lexeme.clone(), expr));
-    }
+    //     let expr = self.expression(reporter)?;
+    //     self.end_of_stmt(reporter)?;
+    //     return Ok(Stmt::Assignment(name.lexeme.clone(), expr));
+    // }
 
     fn expr_stmt(&mut self, reporter: &mut ErrorReporter) -> Result<Stmt, ParseError> {
         let expr = self.expression(reporter)?;
@@ -161,7 +161,27 @@ impl Parser {
     }
 
     fn expression(&mut self, reporter: &mut ErrorReporter) -> Result<Expr, ParseError> {
-        self.logical(reporter)
+        self.assignment(reporter)
+    }
+
+    fn assignment(&mut self, reporter: &mut ErrorReporter) -> Result<Expr, ParseError> {
+        let mut expr = self.logical(reporter)?;
+
+        // This will group the expressions from right-to-left, allowing constructs like `a=b=2`.
+        if self.match_token(&[TokenType::Equal]) {
+            let operator = self.previous();
+            let right = self.assignment(reporter)?;
+            expr = Expr::Binary(Box::new(expr), operator, Box::new(right));
+        }
+
+        // This will group the expressions from left-to-right.
+        // while self.match_token(&[TokenType::Equal]) {
+        //   let operator = self.previous();
+        //   let right = self.logical(reporter)?;
+        //   expr = Expr::Binary(Box::new(expr), operator, Box::new(right));
+        // }
+    
+        Ok(expr)
     }
 
     fn logical(&mut self, reporter: &mut ErrorReporter) -> Result<Expr, ParseError> {
