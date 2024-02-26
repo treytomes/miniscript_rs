@@ -6,7 +6,7 @@ use crate::Expr;
 pub enum Stmt {
     Expression(Expr),
     Print(Expr),
-    Assignment(String, Expr),
+    // Assignment(String, Expr),
 }
 
 // impl Stmt {
@@ -23,7 +23,7 @@ impl Display for Stmt {
         match self {
             Stmt::Expression(expr) => write!(f, "{}", expr),
             Stmt::Print(expr) => write!(f, "print {}", expr),
-            Stmt::Assignment(name, expr) => write!(f, "{} = {}", name, expr),
+            // Stmt::Assignment(name, expr) => write!(f, "{} = {}", name, expr),
         }
     }
 }
@@ -33,7 +33,7 @@ impl Debug for Stmt {
         match self {
             Stmt::Expression(expr) => write!(f, "Expression({})", expr),
             Stmt::Print(expr) => write!(f, "Print({})", expr),
-            Stmt::Assignment(name, expr) => write!(f, "Assignment({}, {})", name, expr),
+            // Stmt::Assignment(name, expr) => write!(f, "Assignment({}, {})", name, expr),
         }
     }
 }

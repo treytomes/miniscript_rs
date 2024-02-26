@@ -200,10 +200,10 @@ pub fn eval_stmts(environment: &mut Environment, stmts: &Vec<Stmt>, reporter: &m
                 println!("{:}", eval_ast(environment, expr, reporter)?);
                 result = EvalResult::Null;
             },
-            Stmt::Assignment(name, value) => {
-                let value = eval_ast(environment, value, reporter)?;
-                environment.set(&name, &value);
-            }
+            // Stmt::Assignment(name, value) => {
+            //     let value = eval_ast(environment, value, reporter)?;
+            //     environment.set(&name, &value);
+            // }
             // _ => {
             //     return Err(reporter.runtime_error(stmt.line(), "Syntax error."))
             // },
@@ -295,7 +295,7 @@ mod tests {
     }
 
     fn test_eval(input: &str, expected: EvalResult) {
-        let mut environment = Environment::new();
+        let mut environment = Environment::new_root();
         let mut reporter = ErrorReporter::new();
 
         let mut scanner = Scanner::new(input);

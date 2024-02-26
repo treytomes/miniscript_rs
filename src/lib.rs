@@ -26,7 +26,8 @@ pub use token_type::TokenType;
 use crate::parser::Parser;
 
 pub struct Miniscript {
-    pub environment: Environment,
+    pub globals: Environment,
+    
     pub had_error: bool,
     pub had_runtime_error: bool,
 }
@@ -34,7 +35,7 @@ pub struct Miniscript {
 impl Miniscript {
     pub fn new() -> Miniscript {
         Self {
-            environment: Environment::new(),
+            globals: Environment::new_root(),
             had_error: false,
             had_runtime_error: false,
         }
@@ -69,7 +70,7 @@ impl Miniscript {
         //     println!("Statement: {:?}", stmt);
         // }
 
-        let result = match eval_stmts(&mut self.environment, &stmts, &mut reporter) {
+        let result = match eval_stmts(&mut self.globals, &stmts, &mut reporter) {
             Ok(result) => result,
             _ => {
                 /* Errors will be handled later. */

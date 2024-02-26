@@ -42,9 +42,9 @@ impl Parser {
         self.tokens[self.current as usize].clone()
     }
 
-    fn peek_next(&self) -> Token {
-        self.tokens[(self.current + 1) as usize].clone()
-    }
+    // fn peek_next(&self) -> Token {
+    //     self.tokens[(self.current + 1) as usize].clone()
+    // }
 
     fn is_at_end(&self) -> bool {
         self.peek().token_type == TokenType::EOF
