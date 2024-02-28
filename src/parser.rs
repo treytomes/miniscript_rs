@@ -264,7 +264,8 @@ impl Parser {
             self.consume(TokenType::RightParen, "Expect ')' after expression.", reporter)?;
             Ok(Expr::Grouping(Box::new(expr)))
         } else {
-            Err(ParseError::UnexpectedToken(self.peek()))
+            // Err(ParseError::UnexpectedToken(self.peek()))
+            Err(self.error(self.peek(), "Expected a primary expression.", reporter))
         }
     }
 

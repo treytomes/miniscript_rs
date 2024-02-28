@@ -138,6 +138,7 @@ impl Scanner {
             "true" => TokenType::True,
             "var" => TokenType::Var,
             "while" => TokenType::While,
+            "end" => TokenType::End,
             _ => TokenType::Identifier,
         };
 

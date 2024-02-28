@@ -16,12 +16,12 @@ pub enum TokenType {
 
     // Keywords.
     Class, // TODO: Remove this once you understand how the class infrastructure works.
-    Fun, // TODO: Rename to Fn after implementing.
+    Fun, // TODO: Rename to Function after implementing.
     This, // TODO: Rename to Self after implementing.
     Var, // TODO: Remove the necessity of this one after implementing variable declarations.
     Print, // TODO: Replace this with some type of intrinsic function.
     True, False, // TODO: I really like the idea of these being runtime constants.
-    And, Else, For, If, Not, Null, Or, Return, Super, While,
+    And, Else, For, If, Not, Null, Or, Return, Super, While, End,
 
     EOF,
 }

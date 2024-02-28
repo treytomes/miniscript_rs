@@ -44,7 +44,7 @@ pub fn format_ast(expr: &Expr) -> String {
 }
 
 pub fn eval_ast(environment: &mut Environment, expr: &Expr, reporter: &mut ErrorReporter) -> Result<EvalResult, Error> {
-    // println!("expr = {}", expr);
+    println!("expr = {}", expr);
 
     match expr {
         Expr::Binary(left, operator, right) => {
@@ -191,12 +191,14 @@ pub fn eval_ast(environment: &mut Environment, expr: &Expr, reporter: &mut Error
 pub fn eval_stmts(environment: &mut Environment, stmts: &Vec<Stmt>, reporter: &mut ErrorReporter) -> Result<EvalResult, Error> {
     let mut result = EvalResult::Null;
     for stmt in stmts {
+        // println!("stmt={}", stmt);
         match stmt {
             Stmt::Expression(expr) => {
                 result = eval_ast(environment, expr, reporter)?;
                 environment.set("_", &result);
             },
             Stmt::Print(expr) => {
+                println!("PRINT: {:?}", expr);
                 println!("{:}", eval_ast(environment, expr, reporter)?);
                 result = EvalResult::Null;
             },
@@ -222,7 +224,7 @@ impl Display for Expr {
 
 impl Debug for Expr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{}", self)
     }
 }
 
